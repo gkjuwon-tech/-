@@ -12,7 +12,7 @@ type Listener = (state: HeartState) => void;
  * The Heart. 입력(평가/시간/방치/자리비움)을 감정으로 전이시킨다.
  *
  * 데스크탑 본체에서 가장 중요한 새 입력은 "present"다:
- *   VS Code(눈)의 하트비트가 끊기면 → 주인이 딴 거 하는 중 → 꼬질룡은 잔다. 💤
+ *   VS Code(눈)의 하트비트가 끊기면 → 주인이 딴 거 하는 중 → 꼬질룡은 잔다.
  *   하트비트가 돌아오면 → 깬다.
  */
 export class Heart {

@@ -14,7 +14,6 @@ import { MemoryStore } from "./core/rag/memory";
 import { Evaluator } from "./core/brain/evaluator";
 import { Heart, HeartState } from "./core/heart/stateMachine";
 import { DiaryWriter } from "./core/diary/writer";
-import { RemoveBgClient } from "./core/face/removeBg";
 import { PoseStudio } from "./core/face/poseStudio";
 import { EMOTION_POSE, getPose, POSES } from "./core/face/poses";
 import { Presence } from "./presence";
@@ -47,8 +46,8 @@ app.whenReady().then(async () => {
   const evaluator = new Evaluator(gemini, memory);
   const heart = new Heart();
   const diary = new DiaryWriter(gemini, memory, config.diaryFolder);
-  const removeBg = new RemoveBgClient(config);
-  const poses = new PoseStudio(config.poseCacheDir, gemini, removeBg);
+  const bundledPoses = path.join(__dirname, "..", "assets", "poses");
+  const poses = new PoseStudio(config.poseCacheDir, gemini, bundledPoses);
   await poses.load();
 
   const presence = new Presence(heart);
@@ -150,7 +149,7 @@ app.whenReady().then(async () => {
 
   function showMenu(): void {
     const menu = Menu.buildFromTemplate([
-      { label: "🦖 쓰다듬기", click: () => ipcMain.emit("pet") },
+      { label: "쓰다듬기", click: () => ipcMain.emit("pet") },
       { type: "separator" },
       {
         label: "오늘 일기 보기",
@@ -174,12 +173,8 @@ app.whenReady().then(async () => {
         },
       },
       { type: "separator" },
-      {
-        label: "포즈 이미지 생성 (Gemini → remove.bg)",
-        click: () => void generatePoses(),
-      },
-      { label: "Gemini API 키 입력…", click: () => void askKey("gemini") },
-      { label: "remove.bg 키 입력…", click: () => void askKey("removebg") },
+      { label: "포즈 이미지 생성하기", click: () => void generatePoses() },
+      { label: "Gemini API 키 입력…", click: () => void askKey() },
       {
         label: "설정 폴더 열기",
         click: () => shell.showItemInFolder(config.settingsFile),
@@ -190,23 +185,15 @@ app.whenReady().then(async () => {
     menu.popup({ window: win });
   }
 
-  async function askKey(which: "gemini" | "removebg"): Promise<void> {
-    const title =
-      which === "gemini"
-        ? "Gemini API 키 (BYOK)"
-        : "remove.bg API 키 (누끼용)";
-    const value = await promptString(title);
+  async function askKey(): Promise<void> {
+    const value = await promptString("Gemini API 키 (BYOK)");
     if (!value) {
       return;
     }
-    if (which === "gemini") {
-      config.setApiKey(value);
-    } else {
-      config.setRemoveBgKey(value);
-    }
+    config.setApiKey(value);
     win?.webContents.send("say", {
       emotion: "joy",
-      line: "오! 이제 더 잘 할 수 있어!!",
+      line: "오! 이제 더 잘 할 수 있어!",
     });
   }
 
@@ -231,12 +218,6 @@ app.whenReady().then(async () => {
   async function generatePoses(): Promise<void> {
     if (!(await config.hasApiKey())) {
       dialog.showMessageBox({ message: "먼저 Gemini API 키부터 입력해줘." });
-      return;
-    }
-    if (!(await config.hasRemoveBgKey())) {
-      dialog.showMessageBox({
-        message: "포즈 누끼를 따려면 remove.bg 키가 필요해.",
-      });
       return;
     }
     win?.webContents.send("say", {

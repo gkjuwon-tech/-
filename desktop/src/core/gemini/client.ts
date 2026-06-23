@@ -49,14 +49,24 @@ export class GeminiClient {
     return values;
   }
 
-  /** @returns data URL(image/png) 또는 이미지 모델이 꺼져있으면 null. */
-  async generateImage(prompt: string): Promise<string | null> {
+  /**
+   * @param refs 일관성을 위해 컨텍스트에 먼저 넣을 레퍼런스 이미지들(앵커 등).
+   * @returns data URL(image/png) 또는 이미지 모델이 꺼져있으면 null.
+   */
+  async generateImage(
+    prompt: string,
+    refs: Array<{ mimeType: string; data: string }> = []
+  ): Promise<string | null> {
     const model = this.settings.imageModel;
     if (!model) {
       return null;
     }
+    const reqParts: unknown[] = [
+      ...refs.map((r) => ({ inlineData: r })),
+      { text: prompt },
+    ];
     const body = {
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      contents: [{ role: "user", parts: reqParts }],
       generationConfig: { responseModalities: ["IMAGE"] },
     };
     const data = await this.call(model, "generateContent", body);

@@ -2,15 +2,13 @@ import { app, safeStorage } from "electron";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { GeminiSettings, RemoveBgSettings } from "./core/settings";
+import { GeminiSettings } from "./core/settings";
 
 interface Stored {
   /** 암호화되어 저장된 키 ("v1:" 또는 "raw:" 접두). */
   geminiKeyEnc?: string;
-  removeBgKeyEnc?: string;
   /** 사용자가 settings.json에 평문으로 적어 넣으면 다음 로드 때 암호화로 이관. */
   geminiKey?: string;
-  removeBgKey?: string;
   textModel?: string;
   embeddingModel?: string;
   imageModel?: string;
@@ -22,10 +20,10 @@ interface Stored {
  * 데스크탑 설정 + 시크릿. API 키는 Electron safeStorage로 암호화해
  * userData/settings.json에 보관한다. (BYOK — 키도 비용도 사용자 거)
  *
- * 편의: 사용자가 settings.json에 geminiKey/removeBgKey를 평문으로 적어두면
- * 다음 실행 때 자동으로 암호화하고 평문을 지운다.
+ * 편의: 사용자가 settings.json에 geminiKey를 평문으로 적어두면 다음 실행 때
+ * 자동으로 암호화하고 평문을 지운다.
  */
-export class Config implements GeminiSettings, RemoveBgSettings {
+export class Config implements GeminiSettings {
   private readonly file: string;
   private data: Stored = {};
 
@@ -44,11 +42,6 @@ export class Config implements GeminiSettings, RemoveBgSettings {
     if (this.data.geminiKey) {
       this.data.geminiKeyEnc = this.encrypt(this.data.geminiKey.trim());
       delete this.data.geminiKey;
-      dirty = true;
-    }
-    if (this.data.removeBgKey) {
-      this.data.removeBgKeyEnc = this.encrypt(this.data.removeBgKey.trim());
-      delete this.data.removeBgKey;
       dirty = true;
     }
     if (dirty) {
@@ -98,21 +91,6 @@ export class Config implements GeminiSettings, RemoveBgSettings {
 
   async hasApiKey(): Promise<boolean> {
     return !!(await this.getApiKey());
-  }
-
-  async getRemoveBgKey(): Promise<string | undefined> {
-    return (
-      this.decrypt(this.data.removeBgKeyEnc) ?? process.env.REMOVEBG_API_KEY
-    );
-  }
-
-  setRemoveBgKey(key: string): void {
-    this.data.removeBgKeyEnc = this.encrypt(key.trim());
-    this.save();
-  }
-
-  async hasRemoveBgKey(): Promise<boolean> {
-    return !!(await this.getRemoveBgKey());
   }
 
   get textModel(): string {

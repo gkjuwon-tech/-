@@ -93,7 +93,7 @@
     const old = stage.querySelector(".mark");
     if (old) old.remove();
     const text =
-      emotion === "rage" ? "💢" :
+      emotion === "rage" ? "!" :
       emotion === "sleepy" ? "z" :
       emotion === "moved" ? "," : "";
     if (!text) return;
