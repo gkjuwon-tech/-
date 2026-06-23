@@ -114,6 +114,13 @@ export class Config implements GeminiSettings {
   get poseCacheDir(): string {
     return path.join(app.getPath("userData"), "poses");
   }
+  get endingStateFile(): string {
+    return path.join(app.getPath("userData"), "ending.json");
+  }
+  /** §17.5 진엔딩에서 꼬질룡이 만드는 첫 프로그램이 들어갈 폴더. */
+  get projectFolder(): string {
+    return path.join(os.homedir(), "my_first_program");
+  }
 
   /** settings.json 경로 (메뉴에서 열어 키 입력 안내용). */
   get settingsFile(): string {

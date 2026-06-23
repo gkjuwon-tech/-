@@ -12,13 +12,14 @@ import { Config } from "./config";
 import { GeminiClient } from "./core/gemini/client";
 import { MemoryStore } from "./core/rag/memory";
 import { Evaluator } from "./core/brain/evaluator";
-import { Heart, HeartState } from "./core/heart/stateMachine";
+import { Heart } from "./core/heart/stateMachine";
 import { DiaryWriter } from "./core/diary/writer";
 import { PoseStudio } from "./core/face/poseStudio";
 import { EMOTION_POSE, getPose, POSES } from "./core/face/poses";
 import { Presence } from "./presence";
 import { EventServer } from "./server";
 import { EasterEggs } from "./easterEggs";
+import { EndingDirector } from "./ending";
 import { DayLog, Emotion, SensorEvent } from "./core/types";
 
 const PRELOAD = path.join(__dirname, "preload.js");
@@ -53,29 +54,74 @@ app.whenReady().then(async () => {
 
   const presence = new Presence(heart);
 
-  // 렌더러로 한 마디 시키기 (이스터에그/엔딩/메뉴 공용).
-  function say(pose: Emotion, line: string): void {
-    win?.webContents.send("say", { emotion: pose, line });
+  // ── 렌더러 뷰 전송 (단일 채널 'state') ───────────────────
+  // 위젯은 언제나 미리 생성해 둔 일관된 포즈 PNG만 그린다. (SVG 폴백 없음)
+  // 사라짐(gone)도 같은 채널에 실어 보내고, 렌더러가 'ready' 핸드셰이크를
+  // 보낸 뒤에만 전송한다 → 초기 메시지 유실 방지.
+  let rendererReady = false;
+  let goneFlag = false;
+  let lastView: Record<string, unknown> = { gone: false };
+
+  async function viewForPose(
+    poseId: string,
+    line?: string,
+    rageLevel = 0
+  ): Promise<Record<string, unknown>> {
+    const frames = await poses.frameDataUrls(poseId);
+    return {
+      gone: false,
+      pose: poseId,
+      rageLevel,
+      poseFrames: frames,
+      poseFrameMs: getPose(poseId)?.frameMs ?? 0,
+      line,
+    };
   }
+
+  function send(view: Record<string, unknown>): void {
+    lastView = view;
+    if (win && rendererReady) {
+      win.webContents.send("state", view);
+    }
+  }
+
+  /** 현재 감정 상태(또는 사라짐)를 위젯에 반영. */
+  async function sendCurrent(): Promise<void> {
+    if (goneFlag) {
+      send({ gone: true });
+      return;
+    }
+    const s = heart.current();
+    send(await viewForPose(EMOTION_POSE[s.emotion], s.line, s.rageLevel));
+  }
+
+  /** 한 포즈 + 한 마디를 잠깐 띄운다 (쓰다듬기/이스터에그/엔딩 비트). */
+  function say(pose: string, line: string): void {
+    if (goneFlag) {
+      return;
+    }
+    void viewForPose(pose, line).then(send);
+  }
+
+  heart.onChange(() => void sendCurrent());
   const eggs = new EasterEggs(say);
   eggs.start();
 
-  // 감정 변화를 렌더러로 (포즈 PNG가 있으면 그걸로, 없으면 SVG 폴백).
-  async function pushState(state: HeartState): Promise<void> {
-    if (!win) {
-      return;
-    }
-    const poseId = EMOTION_POSE[state.emotion];
-    const frames = poses.hasPose(poseId)
-      ? await poses.frameDataUrls(poseId)
-      : [];
-    win.webContents.send("state", {
-      ...state,
-      poseFrames: frames,
-      poseFrameMs: getPose(poseId)?.frameMs ?? 0,
-    });
-  }
-  heart.onChange((s) => void pushState(s));
+  // 엔딩 아크 (§17): 진짜 사라졌다 며칠 뒤 돌아오고, 진짜 파일을 남긴다.
+  const ending = new EndingDirector(
+    {
+      stateFile: config.endingStateFile,
+      diaryFolder: config.diaryFolder,
+      projectFolder: config.projectFolder,
+      setGone: (gone) => {
+        goneFlag = gone;
+        void sendCurrent();
+      },
+      say: (pose, line) => say(pose as Emotion, line),
+      openPath: (p) => void shell.openPath(p),
+    },
+    process.env.KKOJI_ENDING_DEMO === "1"
+  );
 
   // 센서 이벤트 처리.
   let busy = false;
@@ -92,6 +138,10 @@ app.whenReady().then(async () => {
         return;
       case "build":
         presence.beat();
+        ending.onActivity();
+        if (ending.isGone()) {
+          return; // 사라진 동안엔 조용히.
+        }
         if (e.ok) {
           heart.applyEvaluation({
             pose: "joy",
@@ -105,12 +155,18 @@ app.whenReady().then(async () => {
         return;
       case "code":
         presence.beat();
-        if (busy) {
-          return; // 한 번에 하나만.
+        ending.onActivity();
+        if (ending.isGone() || busy) {
+          return; // 사라진 동안엔 조용히 / 한 번에 하나만.
         }
         busy = true;
         try {
           const ev = await evaluator.evaluate(e.code, e.languageId);
+          // 침묵 곡선(§17.1): 많이 배울수록 점점 말이 없어진다. 같은 상황도
+          // 예전엔 호들갑, 이제는 그냥 조용히 포즈만. 끝엔 거의 말이 없다.
+          if (Math.random() < silenceChance(memory.size)) {
+            ev.line = "";
+          }
           heart.applyEvaluation(ev);
           eggs.onCode(e.code); // 이스터에그 감지
           day.learned.push(...ev.newConcepts);
@@ -133,20 +189,25 @@ app.whenReady().then(async () => {
 
   server.start();
   presence.start();
-  if (process.env.KKOJI_FORCE_ENDING !== "1") {
-    createWindow(); // 데모 엔딩 녹화 땐 캐릭터 창 생략(깔끔한 단일 화면).
-  }
+  createWindow();
+  await ending.init();
 
   // 시간/방치 맥락 틱.
   const tickTimer = setInterval(() => heart.tick(), 60_000);
 
   // ── IPC ────────────────────────────────────────────────
+  // 렌더러가 로드 완료를 알리면 그때 현재 뷰를 보낸다 (초기 메시지 유실 방지).
+  ipcMain.on("ready", () => {
+    rendererReady = true;
+    if (win) {
+      win.webContents.send("state", lastView);
+    }
+    void sendCurrent();
+  });
+
   ipcMain.on("pet", () => {
     heart.touch();
-    win?.webContents.send("say", {
-      emotion: "joy",
-      line: "에헤헤… 또 쓰다듬어줘…",
-    });
+    say("pet", "에헤헤… 또 쓰다듬어줘…");
   });
 
   ipcMain.on("menu", () => showMenu());
@@ -171,20 +232,21 @@ app.whenReady().then(async () => {
           const o = memory.oldest();
           dialog.showMessageBox({
             message: o
-              ? `아는 개념 ${memory.size}개. 제일 먼저 배운 건 "${o.concept}" (${o.firstSeen}).`
-              : "아직 아무것도 몰라… 너 코딩하는 거 보여줘.",
+              ? `${growthStage(memory.size)} · 아는 개념 ${memory.size}개\n제일 먼저 배운 건 "${o.concept}" (${o.firstSeen}).`
+              : "알 · 아직 아무것도 몰라… 너 코딩하는 거 보여줘.",
           });
         },
       },
       { type: "separator" },
-      { label: "엔딩 미리보기 (개발용)", click: () => void playEnding() },
-      { label: "포즈 다시 그리기 (개발용)", click: () => void generatePoses() },
       { label: "Gemini API 키 입력…", click: () => void askKey() },
+      { label: "포즈 다시 그리기 (개발용)", click: () => void generatePoses() },
+      { label: "엔딩 체험 (개발용)", click: () => ending.forceDisappear() },
       {
         label: "설정 폴더 열기",
         click: () => shell.showItemInFolder(config.settingsFile),
       },
       { type: "separator" },
+      { label: "꼬질룡 끄기…", click: () => void turnOff() },
       { label: "종료", click: () => app.quit() },
     ]);
     menu.popup({ window: win });
@@ -207,6 +269,7 @@ app.whenReady().then(async () => {
       const snapshot = { ...day, learned: dedupe(day.learned) };
       day = freshDay();
       const p = await diary.write(snapshot);
+      await ending.incDiary();
       if (announce) {
         win?.webContents.send("say", {
           emotion: "moved",
@@ -231,7 +294,7 @@ app.whenReady().then(async () => {
     });
     try {
       await poses.generateAll();
-      void pushState(heart.current()); // 새 PNG로 갱신.
+      void sendCurrent(); // 새 PNG로 갱신.
       win?.webContents.send("say", {
         emotion: "moved",
         line: "이게… 진짜 내 모습이야. 어때?",
@@ -241,69 +304,24 @@ app.whenReady().then(async () => {
     }
   }
 
-  // ── 엔딩 시퀀스 (기획서 §17) ─────────────────────────────
-  async function playEnding(): Promise<void> {
-    const ids: Emotion[] = ["sleepy", "moved", "calm", "joy"];
-    const images: Record<string, string> = {};
-    for (const id of ids) {
-      const frames = await poses.frameDataUrls(id);
-      if (frames[0]) {
-        images[id] = frames[0];
-      }
-    }
-    const petFrames = await poses.frameDataUrls("pet").catch(() => []);
-    if (petFrames[0]) {
-      images.pet = petFrames[0];
-    }
-
-    const { workArea } = screen.getPrimaryDisplay();
-    const W = 760;
-    const H = 520;
-    const e = new BrowserWindow({
-      width: W,
-      height: H,
-      x: workArea.x + Math.round((workArea.width - W) / 2),
-      y: workArea.y + Math.round((workArea.height - H) / 2),
-      frame: false,
-      resizable: false,
-      backgroundColor: "#0c0c0d",
-      title: "꼬질룡",
-      webPreferences: {
-        preload: PRELOAD,
-        contextIsolation: true,
-        nodeIntegration: false,
-      },
+  // §17.8 — 끄기. "삭제"가 아니라 "끄기", 되돌릴 수 있다. 작별 편지를 남긴다.
+  async function turnOff(): Promise<void> {
+    const { response } = await dialog.showMessageBox({
+      type: "question",
+      message: "정말 끄시겠어요?",
+      detail: "꼬질룡은 되돌릴 수 있습니다. (일기는 폴더에 그대로 남아요.)",
+      buttons: ["취소", "끄기"],
+      defaultId: 0,
+      cancelId: 0,
     });
-    e.setMenuBarVisibility(false);
-    e.loadFile(path.join(RENDERER, "ending.html"));
-    e.webContents.once("did-finish-load", () =>
-      e.webContents.send("ending:init", { images })
-    );
-
-    await new Promise<void>((resolve) => {
-      const onDone = () => {
-        ipcMain.removeListener("ending:done", onDone);
-        resolve();
-      };
-      ipcMain.on("ending:done", onDone);
-      e.on("closed", () => {
-        ipcMain.removeListener("ending:done", onDone);
-        resolve();
-      });
-    });
-    if (!e.isDestroyed()) {
-      e.close();
+    if (response !== 1) {
+      return;
     }
+    await ending.turnOff();
+    app.quit();
   }
 
-  // 데모/검증용: 환경변수로 부팅하자마자 엔딩 재생.
-  if (process.env.KKOJI_FORCE_ENDING === "1") {
-    void playEnding().then(() => {
-      if (process.env.KKOJI_E2E === "1") {
-        app.exit(0);
-      }
-    });
-  }
+  ipcMain.on("gone-click", () => ending.onGoneClick());
 
   // 종료 시 일기 저장.
   app.on("before-quit", (e) => {
@@ -406,4 +424,22 @@ function strongest(a: Emotion, b: Emotion): Emotion {
 
 function dedupe(arr: string[]): string[] {
   return [...new Set(arr.map((s) => s.trim()).filter(Boolean))];
+}
+
+/** 성장 단계 (기획서 §8). 화려해지진 않고, 아는 게 많아진다. */
+function growthStage(size: number): string {
+  if (size < 1) return "알";
+  if (size < 50) return "깬 꼬질룡";
+  if (size < 300) return "배우는 꼬질룡";
+  if (size < 800) return "똑똑해진 꼬질룡";
+  return "용이 된 꼬질룡";
+}
+
+/** 아는 개념이 많아질수록 말풍선을 띄울 확률이 줄어든다(=말수 감소). */
+function silenceChance(size: number): number {
+  if (size < 50) return 0; // 초반: 호들갑, 늘 말한다.
+  if (size < 150) return 0.15;
+  if (size < 300) return 0.35;
+  if (size < 600) return 0.6;
+  return 0.85; // 후반: 거의 조용히. "넌 알 거야."
 }

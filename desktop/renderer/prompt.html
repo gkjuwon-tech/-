@@ -3,18 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+        content="default-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self';" />
   <title>꼬질룡</title>
   <style>
-    body { font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
-      margin: 0; padding: 16px; background: #fafafa; color: #141414; }
-    h3 { margin: 0 0 10px; font-size: 14px; }
-    input { width: 100%; box-sizing: border-box; padding: 8px; font-size: 13px;
-      border: 1.5px solid #141414; border-radius: 8px; }
-    .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
-    button { padding: 6px 14px; font-size: 13px; border: 1.5px solid #141414;
-      border-radius: 8px; background: #fff; cursor: pointer; }
-    button.go { background: #141414; color: #fff; }
+    :root { --ink:#161616; --paper:#fffdf3; --note:#fff7c7; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Gaegu", "Nanum Pen Script", system-ui, sans-serif;
+      margin: 0; padding: 18px; color: var(--ink);
+      background: var(--paper);
+      background-image: radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+      background-size: 18px 18px;
+    }
+    h3 { font-family:"Nanum Pen Script"; font-weight:400; font-size: 26px; margin: 0 0 10px; transform: rotate(-1deg); }
+    input {
+      width: 100%; padding: 9px 11px; font-size: 15px; font-family: "Gaegu", monospace;
+      border: 2.4px solid var(--ink); background: #fff;
+      border-radius: 200px 16px 200px 16px / 16px 200px 16px 200px;
+    }
+    .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+    button {
+      font-family:"Nanum Pen Script"; font-size: 22px; padding: 4px 18px; cursor: pointer;
+      border: 2.4px solid var(--ink); background: var(--paper); color: var(--ink);
+      border-radius: 180px 14px 160px 18px / 18px 160px 14px 180px;
+      box-shadow: 2px 3px 0 rgba(0,0,0,.2);
+    }
+    button:nth-child(1){ transform: rotate(1.2deg); }
+    button.go { background: var(--ink); color: var(--paper); transform: rotate(-1.4deg); }
+    button:active { transform: translateY(2px); box-shadow: 1px 1px 0 rgba(0,0,0,.2); }
   </style>
 </head>
 <body>
