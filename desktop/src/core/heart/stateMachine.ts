@@ -66,10 +66,10 @@ export class Heart {
   applyEvaluation(ev: Evaluation): void {
     this.present = true;
     this.touch();
-    const base: Emotion =
-      ev.verdict === "dance" ? "joy" : ev.verdict === "rage" ? "rage" : "calm";
+    // Gemini가 고른 포즈를 그대로 감정으로 쓴다. 단, 평온인데 처음 보는 게
+    // 많으면 집중(노려보기)으로 살짝 보정.
     const emotion: Emotion =
-      base === "calm" && ev.newConcepts.length > 0 ? "focus" : base;
+      ev.pose === "calm" && ev.newConcepts.length > 0 ? "focus" : ev.pose;
     this.set({ emotion, rageLevel: ev.rageLevel, line: ev.line });
   }
 

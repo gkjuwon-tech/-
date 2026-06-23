@@ -18,6 +18,7 @@ import { PoseStudio } from "./core/face/poseStudio";
 import { EMOTION_POSE, getPose, POSES } from "./core/face/poses";
 import { Presence } from "./presence";
 import { EventServer } from "./server";
+import { EasterEggs } from "./easterEggs";
 import { DayLog, Emotion, SensorEvent } from "./core/types";
 
 const PRELOAD = path.join(__dirname, "preload.js");
@@ -51,6 +52,13 @@ app.whenReady().then(async () => {
   await poses.load();
 
   const presence = new Presence(heart);
+
+  // 렌더러로 한 마디 시키기 (이스터에그/엔딩/메뉴 공용).
+  function say(pose: Emotion, line: string): void {
+    win?.webContents.send("say", { emotion: pose, line });
+  }
+  const eggs = new EasterEggs(say);
+  eggs.start();
 
   // 감정 변화를 렌더러로 (포즈 PNG가 있으면 그걸로, 없으면 SVG 폴백).
   async function pushState(state: HeartState): Promise<void> {
@@ -86,7 +94,7 @@ app.whenReady().then(async () => {
         presence.beat();
         if (e.ok) {
           heart.applyEvaluation({
-            verdict: "dance",
+            pose: "joy",
             rageLevel: 0,
             line: e.warnings ? "빌드 됐다! 근데 경고가 좀…" : "초록불!! 최고야!!",
             newConcepts: [],
@@ -104,18 +112,12 @@ app.whenReady().then(async () => {
         try {
           const ev = await evaluator.evaluate(e.code, e.languageId);
           heart.applyEvaluation(ev);
+          eggs.onCode(e.code); // 이스터에그 감지
           day.learned.push(...ev.newConcepts);
-          day.peakEmotion = strongest(
-            day.peakEmotion,
-            ev.verdict === "dance"
-              ? "joy"
-              : ev.verdict === "rage"
-              ? "rage"
-              : "calm"
-          );
-          if (ev.verdict === "rage") {
+          day.peakEmotion = strongest(day.peakEmotion, ev.pose);
+          if (ev.pose === "rage") {
             day.moments.push(`코드 보고 빡쳤다: ${ev.line}`);
-          } else if (ev.verdict === "dance") {
+          } else if (ev.pose === "joy") {
             day.moments.push("주인 코드 멋져서 춤췄다.");
           }
         } catch (err) {
@@ -131,7 +133,9 @@ app.whenReady().then(async () => {
 
   server.start();
   presence.start();
-  createWindow();
+  if (process.env.KKOJI_FORCE_ENDING !== "1") {
+    createWindow(); // 데모 엔딩 녹화 땐 캐릭터 창 생략(깔끔한 단일 화면).
+  }
 
   // 시간/방치 맥락 틱.
   const tickTimer = setInterval(() => heart.tick(), 60_000);
@@ -173,7 +177,8 @@ app.whenReady().then(async () => {
         },
       },
       { type: "separator" },
-      { label: "포즈 이미지 생성하기", click: () => void generatePoses() },
+      { label: "엔딩 미리보기 (개발용)", click: () => void playEnding() },
+      { label: "포즈 다시 그리기 (개발용)", click: () => void generatePoses() },
       { label: "Gemini API 키 입력…", click: () => void askKey() },
       {
         label: "설정 폴더 열기",
@@ -234,6 +239,70 @@ app.whenReady().then(async () => {
     } catch (err) {
       dialog.showErrorBox("꼬질룡", `포즈 생성 실패: ${err}`);
     }
+  }
+
+  // ── 엔딩 시퀀스 (기획서 §17) ─────────────────────────────
+  async function playEnding(): Promise<void> {
+    const ids: Emotion[] = ["sleepy", "moved", "calm", "joy"];
+    const images: Record<string, string> = {};
+    for (const id of ids) {
+      const frames = await poses.frameDataUrls(id);
+      if (frames[0]) {
+        images[id] = frames[0];
+      }
+    }
+    const petFrames = await poses.frameDataUrls("pet").catch(() => []);
+    if (petFrames[0]) {
+      images.pet = petFrames[0];
+    }
+
+    const { workArea } = screen.getPrimaryDisplay();
+    const W = 760;
+    const H = 520;
+    const e = new BrowserWindow({
+      width: W,
+      height: H,
+      x: workArea.x + Math.round((workArea.width - W) / 2),
+      y: workArea.y + Math.round((workArea.height - H) / 2),
+      frame: false,
+      resizable: false,
+      backgroundColor: "#0c0c0d",
+      title: "꼬질룡",
+      webPreferences: {
+        preload: PRELOAD,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    e.setMenuBarVisibility(false);
+    e.loadFile(path.join(RENDERER, "ending.html"));
+    e.webContents.once("did-finish-load", () =>
+      e.webContents.send("ending:init", { images })
+    );
+
+    await new Promise<void>((resolve) => {
+      const onDone = () => {
+        ipcMain.removeListener("ending:done", onDone);
+        resolve();
+      };
+      ipcMain.on("ending:done", onDone);
+      e.on("closed", () => {
+        ipcMain.removeListener("ending:done", onDone);
+        resolve();
+      });
+    });
+    if (!e.isDestroyed()) {
+      e.close();
+    }
+  }
+
+  // 데모/검증용: 환경변수로 부팅하자마자 엔딩 재생.
+  if (process.env.KKOJI_FORCE_ENDING === "1") {
+    void playEnding().then(() => {
+      if (process.env.KKOJI_E2E === "1") {
+        app.exit(0);
+      }
+    });
   }
 
   // 종료 시 일기 저장.

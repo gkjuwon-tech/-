@@ -17,4 +17,9 @@ contextBridge.exposeInMainWorld("kkoji", {
     ipcRenderer.on("prompt:init", (_e, data) => cb(data)),
   promptSubmit: (value: string | null) =>
     ipcRenderer.send("prompt:submit", value),
+
+  // 엔딩 창
+  onEndingInit: (cb: (data: unknown) => void) =>
+    ipcRenderer.on("ending:init", (_e, data) => cb(data)),
+  endingDone: () => ipcRenderer.send("ending:done"),
 });

@@ -80,21 +80,23 @@ body.shake { animation: shake 0.12s steps(2) 6; }
 
 body.reduce-motion .kkoji { animation: none !important; }
 
-/* 말풍선 */
+/* 말풍선 — 랜딩처럼 비뚤빼뚤 손그림 톤 */
 .speech {
   position: absolute;
-  top: 4px;
+  top: 2px;
   left: 6px;
   right: 6px;
-  padding: 7px 9px;
-  font-size: 12px;
-  line-height: 1.4;
+  padding: 8px 11px;
+  font-family: "Nanum Pen Script", "Gaegu", system-ui, sans-serif;
+  font-size: 19px;
+  line-height: 1.25;
   color: #141414;
-  background: #fffef7;
-  border: 1.5px solid #141414;
-  border-radius: 12px 12px 12px 2px;
-  box-shadow: 1px 1px 0 #141414;
-  transform: rotate(-0.6deg);
+  background: #fff7c7;
+  border: 2.2px solid #141414;
+  /* 손으로 막 그린 비뚤어진 테두리 */
+  border-radius: 200px 18px 200px 18px / 18px 200px 18px 200px;
+  box-shadow: 2px 3px 0 rgba(0,0,0,.2);
+  transform: rotate(-2deg);
   z-index: 2;
   -webkit-app-region: no-drag;
 }
