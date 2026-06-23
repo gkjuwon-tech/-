@@ -94,7 +94,8 @@ export class Config implements GeminiSettings {
   }
 
   get textModel(): string {
-    return this.data.textModel || "gemini-2.0-flash";
+    // 자동 최신 플래시 → 특정 모델이 퇴역해도 안 죽는다.
+    return this.data.textModel || "gemini-flash-latest";
   }
   get embeddingModel(): string {
     return this.data.embeddingModel || "gemini-embedding-001";
@@ -113,6 +114,13 @@ export class Config implements GeminiSettings {
   }
   get poseCacheDir(): string {
     return path.join(app.getPath("userData"), "poses");
+  }
+  get endingStateFile(): string {
+    return path.join(app.getPath("userData"), "ending.json");
+  }
+  /** §17.5 진엔딩에서 꼬질룡이 만드는 첫 프로그램이 들어갈 폴더. */
+  get projectFolder(): string {
+    return path.join(os.homedir(), "my_first_program");
   }
 
   /** settings.json 경로 (메뉴에서 열어 키 입력 안내용). */

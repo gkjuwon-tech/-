@@ -16,7 +16,8 @@ export type Emotion =
 export type RageLevel = 0 | 1 | 2 | 3 | 4;
 
 export interface Evaluation {
-  verdict: "dance" | "calm" | "rage";
+  /** Gemini가 고른 포즈(=감정). 미리 만들어 둔 포즈 카탈로그 중 하나. */
+  pose: Emotion;
   rageLevel: RageLevel;
   line: string;
   newConcepts: string[];
