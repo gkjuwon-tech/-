@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { GeminiClient } from "../gemini/client";
-import { whiteKey } from "./cutout";
+import { cleanCutout } from "./cutout";
 import {
   POSES,
   Pose,
@@ -113,7 +113,7 @@ export class PoseStudio {
   }
 
   private async saveCut(pose: Pose, i: number, rawPng: Buffer): Promise<void> {
-    const transparent = whiteKey(rawPng);
+    const transparent = cleanCutout(rawPng); // 누끼 + 캡션 제거
     await fs.writeFile(
       path.join(this.cacheDir, frameNames(pose)[i]),
       transparent

@@ -14,7 +14,8 @@ import { Emotion } from "../types";
  */
 
 /** 어떤 포즈든 공통으로 강제하는 배경/프레이밍 (누끼가 깨끗하게 떨어지게). */
-const FRAMING = `Keep it a SINGLE wobbly hand-drawn BLACK line drawing, NO color fill, NO shading, NO gradient. Centered, square 1:1, generous empty margin, full body, on a flat uniform pure white (#FFFFFF) background with NO shadow, NO floor, NO texture.`;
+const FRAMING = `Keep it a SINGLE wobbly hand-drawn BLACK line drawing, NO color fill, NO shading, NO gradient. Centered, square 1:1, generous empty margin, full body, on a flat uniform pure white (#FFFFFF) background with NO shadow, NO floor, NO texture.
+ABSOLUTELY NO text, NO words, NO captions, NO labels, NO signature, and NO writing the character's name anywhere in the image. (Only tiny in-scene comic symbols that are explicitly part of the pose — like a small 'z' for sleeping or a little anger mark — are allowed.)`;
 
 /** 앵커(레퍼런스 없음)용 단독 프롬프트. */
 export function buildAnchorPrompt(action: string): string {
