@@ -128,6 +128,16 @@ body.reduce-motion .kkoji { animation: none !important; }
 }
 .speech.hidden { display: none; }
 
+/* 생성된 누끼 PNG 포즈 */
+.pose {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  image-rendering: auto;
+  cursor: pointer;
+}
+.hidden { display: none !important; }
+
 /* 머리 위 💢 / z / 눈물 같은 작은 검은 선 표식 */
 .mark {
   position: absolute;

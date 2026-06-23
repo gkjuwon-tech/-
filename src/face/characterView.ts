@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { Heart, HeartState } from "../heart/stateMachine";
 import { Config } from "../config";
+import { PoseStudio } from "./poseStudio";
+import { EMOTION_POSE, getPose } from "./poses";
 
 /**
  * 꼬질룡의 얼굴. webview에 상주하며 감정 상태를 표정+모션+말풍선으로 그린다.
@@ -15,7 +17,8 @@ export class CharacterView implements vscode.WebviewViewProvider {
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly heart: Heart,
-    private readonly config: Config
+    private readonly config: Config,
+    private readonly poses: PoseStudio
   ) {
     // 감정이 바뀌면 webview로 밀어 넣는다.
     this.heart.onChange((state) => this.render(state));
@@ -25,7 +28,10 @@ export class CharacterView implements vscode.WebviewViewProvider {
     this.view = view;
     view.webview.options = {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "media")],
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.extensionUri, "media"),
+        this.poses.resourceRoot, // 캐시된 누끼 PNG를 읽기 위해.
+      ],
     };
     view.webview.html = this.html(view.webview);
 
@@ -45,14 +51,29 @@ export class CharacterView implements vscode.WebviewViewProvider {
     this.view?.webview.postMessage({ type: "say", emotionLabel, line });
   }
 
+  /** 캐시된 포즈를 다시 만들었을 때 webview를 새 PNG로 갱신. */
+  refresh(): void {
+    if (this.view) {
+      this.render(this.heart.current());
+    }
+  }
+
   private render(state: HeartState): void {
-    this.view?.webview.postMessage({
+    if (!this.view) {
+      return;
+    }
+    const poseId = EMOTION_POSE[state.emotion];
+    const frames = this.poses.frameUris(this.view.webview, poseId);
+    this.view.webview.postMessage({
       type: "state",
       emotion: state.emotion,
       rageLevel: state.rageLevel,
       line: state.line,
       reduceMotion: this.config.reduceMotion,
       mute: this.config.mute,
+      // 생성 포즈가 캐시에 있으면 PNG로, 없으면 빈 배열 → webview가 SVG 폴백.
+      poseFrames: frames,
+      poseFrameMs: getPose(poseId)?.frameMs ?? 0,
     });
   }
 
@@ -79,6 +100,7 @@ export class CharacterView implements vscode.WebviewViewProvider {
 <body>
   <div id="stage">
     <div id="speech" class="speech hidden"></div>
+    <img id="poseImg" class="pose hidden" alt="꼬질룡" />
     <div id="kkoji" class="kkoji calm" title="쓰다듬기">${INLINE_DINO}</div>
   </div>
   <script nonce="${nonce}" src="${js}"></script>

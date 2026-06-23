@@ -5,6 +5,9 @@
   const kkoji = /** @type {HTMLElement} */ (document.getElementById("kkoji"));
   const speech = /** @type {HTMLElement} */ (document.getElementById("speech"));
   const stage = /** @type {HTMLElement} */ (document.getElementById("stage"));
+  const poseImg = /** @type {HTMLImageElement} */ (document.getElementById("poseImg"));
+
+  let poseTimer; // 생성 포즈 프레임 순환 타이머.
 
   const EMOTIONS = [
     "calm", "focus", "joy", "rage", "moved", "sleepy", "sulk", "worry",
@@ -24,11 +27,13 @@
 
   let speechTimer;
 
-  // 쓰다듬기
-  kkoji.addEventListener("click", () => {
+  // 쓰다듬기 (SVG든 PNG든 클릭하면 좋아함)
+  function onPet() {
     vscode.postMessage({ type: "pet" });
     pat();
-  });
+  }
+  kkoji.addEventListener("click", onPet);
+  poseImg.addEventListener("click", onPet);
 
   window.addEventListener("message", (e) => {
     const m = e.data;
@@ -40,19 +45,51 @@
   });
 
   function applyState(m) {
-    // 클래스 리셋 후 감정 적용
+    document.body.classList.toggle("reduce-motion", !!m.reduceMotion);
+
+    // 생성된 누끼 PNG 포즈가 있으면 그걸 우선 사용, 없으면 SVG 폴백.
+    if (m.poseFrames && m.poseFrames.length) {
+      showPose(m.poseFrames, m.poseFrameMs, !!m.reduceMotion);
+    } else {
+      showSvg(m);
+    }
+
+    if (m.emotion === "rage" && m.rageLevel >= 4 && !m.reduceMotion) {
+      document.body.classList.add("shake");
+      setTimeout(() => document.body.classList.remove("shake"), 800);
+    }
+    if (m.line) showSpeech(m.line);
+  }
+
+  /** 캐시된 포즈 PNG 프레임을 보여주고, 여러 장이면 끊기게 순환. */
+  function showPose(frames, frameMs, reduceMotion) {
+    clearInterval(poseTimer);
+    kkoji.classList.add("hidden");
+    poseImg.classList.remove("hidden");
+    let i = 0;
+    poseImg.src = frames[0];
+    if (frames.length > 1 && frameMs > 0 && !reduceMotion) {
+      poseTimer = setInterval(() => {
+        i = (i + 1) % frames.length;
+        poseImg.src = frames[i];
+      }, frameMs);
+    }
+  }
+
+  /** 생성 포즈가 없을 때의 인라인 SVG 폴백 (기존 동작). */
+  function showSvg(m) {
+    clearInterval(poseTimer);
+    poseImg.classList.add("hidden");
+    kkoji.classList.remove("hidden");
     kkoji.className = "kkoji " + m.emotion;
     if (m.emotion === "rage") {
       kkoji.classList.add("lv" + (m.rageLevel || 1));
-      if (m.rageLevel >= 4 && !m.reduceMotion) {
-        document.body.classList.add("shake");
-        setTimeout(() => document.body.classList.remove("shake"), 800);
-      }
     }
-    document.body.classList.toggle("reduce-motion", !!m.reduceMotion);
+    if (m.reduceMotion) {
+      document.body.classList.add("reduce-motion");
+    }
     setEyes(m.emotion);
     setMark(m.emotion);
-    if (m.line) showSpeech(m.line);
   }
 
   function setEyes(emotion) {
@@ -94,8 +131,9 @@
   }
 
   function pat() {
-    kkoji.style.transform = "translateY(-6px)";
-    setTimeout(() => (kkoji.style.transform = ""), 120);
+    const el = poseImg.classList.contains("hidden") ? kkoji : poseImg;
+    el.style.transform = "translateY(-6px)";
+    setTimeout(() => (el.style.transform = ""), 120);
   }
 
   // ── 눈 SVG 조각들 (currentColor = 검은 선) ──────────────

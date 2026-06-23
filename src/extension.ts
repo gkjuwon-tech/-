@@ -8,6 +8,8 @@ import { Eye } from "./eye/observer";
 import { DiaryWriter } from "./diary/writer";
 import { CharacterView } from "./face/characterView";
 import { EasterEggs } from "./easterEggs";
+import { RemoveBgClient } from "./face/removeBg";
+import { PoseStudio } from "./face/poseStudio";
 
 /**
  * 꼬질룡 부화. 모든 부품을 여기서 한 번 조립한다.
@@ -30,7 +32,11 @@ export async function activate(context: vscode.ExtensionContext) {
   eye = new Eye(evaluator, heart, config);
   diary = new DiaryWriter(gemini, memory, config);
 
-  const view = new CharacterView(context.extensionUri, heart, config);
+  const removeBg = new RemoveBgClient(config);
+  const poses = new PoseStudio(context, gemini, removeBg);
+  await poses.load();
+
+  const view = new CharacterView(context.extensionUri, heart, config, poses);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(CharacterView.viewId, view, {
       webviewOptions: { retainContextWhenHidden: true },
@@ -96,6 +102,62 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("kkojilryong.pet", () => {
       heart.touch();
       view.say("기쁨", "에헤헤… 또 쓰다듬어줘…");
+    }),
+
+    vscode.commands.registerCommand("kkojilryong.setRemoveBgKey", async () => {
+      const key = await vscode.window.showInputBox({
+        title: "remove.bg API 키 (BYOK)",
+        prompt: "생성된 꼬질룡 이미지의 배경을 따는 데 쓴다. https://www.remove.bg/dashboard#api-key",
+        password: true,
+        ignoreFocusOut: true,
+      });
+      if (key) {
+        await config.setRemoveBgKey(key);
+        view.say("기쁨", "오! 이제 나 진짜 모습으로 나올 수 있어!!");
+      }
+    }),
+
+    vscode.commands.registerCommand("kkojilryong.generatePoses", async () => {
+      if (!(await config.hasApiKey())) {
+        vscode.window.showWarningMessage(
+          "먼저 Gemini API 키부터 등록해줘 (꼬질룡: Gemini API 키 등록)."
+        );
+        return;
+      }
+      if (!(await config.hasRemoveBgKey())) {
+        const pick = await vscode.window.showWarningMessage(
+          "포즈 누끼를 따려면 remove.bg 키가 필요해. 등록할까?",
+          "등록하기"
+        );
+        if (pick) {
+          await vscode.commands.executeCommand("kkojilryong.setRemoveBgKey");
+        }
+        if (!(await config.hasRemoveBgKey())) {
+          return;
+        }
+      }
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "🦖 꼬질룡 포즈 그리는 중… (Gemini → remove.bg)",
+          cancellable: false,
+        },
+        async (progress) => {
+          try {
+            await poses.generateAll((label, done, total) => {
+              progress.report({
+                message: `${label} (${done + 1}/${total})`,
+                increment: 100 / total,
+              });
+            });
+            view.refresh();
+            view.say("감동", "이게… 진짜 내 모습이야. 어때?");
+            vscode.window.showInformationMessage("🦖 꼬질룡 포즈 생성 완료!");
+          } catch (err) {
+            handlePoseError(err);
+          }
+        }
+      );
     })
   );
 
@@ -125,6 +187,17 @@ export async function deactivate() {
         // 종료 중 실패는 조용히. 다음에 또 쓴다.
       }
     }
+  }
+}
+
+function handlePoseError(err: unknown): void {
+  const msg = String(err);
+  if (msg.includes("NO_API_KEY")) {
+    vscode.window.showErrorMessage("Gemini API 키가 없어 포즈를 못 그렸어.");
+  } else if (msg.includes("NO_REMOVEBG_KEY")) {
+    vscode.window.showErrorMessage("remove.bg 키가 없어 누끼를 못 땄어.");
+  } else {
+    vscode.window.showErrorMessage(`꼬질룡 포즈 생성 실패: ${msg}`);
   }
 }
 

@@ -52,6 +52,14 @@
       {
         "command": "kkojilryong.pet",
         "title": "꼬질룡: 쓰다듬기"
+      },
+      {
+        "command": "kkojilryong.setRemoveBgKey",
+        "title": "꼬질룡: remove.bg API 키 등록 (누끼용)"
+      },
+      {
+        "command": "kkojilryong.generatePoses",
+        "title": "꼬질룡: 포즈 이미지 생성 (Gemini → remove.bg)"
       }
     ],
     "configuration": {

@@ -8,6 +8,7 @@ import * as path from "path";
  */
 export class Config {
   private static readonly KEY = "kkojilryong.geminiApiKey";
+  private static readonly REMOVEBG_KEY = "kkojilryong.removeBgApiKey";
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -25,6 +26,18 @@ export class Config {
 
   async hasApiKey(): Promise<boolean> {
     return !!(await this.getApiKey());
+  }
+
+  async getRemoveBgKey(): Promise<string | undefined> {
+    return this.context.secrets.get(Config.REMOVEBG_KEY);
+  }
+
+  async setRemoveBgKey(key: string): Promise<void> {
+    await this.context.secrets.store(Config.REMOVEBG_KEY, key.trim());
+  }
+
+  async hasRemoveBgKey(): Promise<boolean> {
+    return !!(await this.getRemoveBgKey());
   }
 
   get textModel(): string {
