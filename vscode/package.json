@@ -1,0 +1,43 @@
+{
+  "name": "kkojilryong-connector",
+  "displayName": "꼬질룡 연동 (VS Code)",
+  "description": "꼬질룡 데스크탑 앱의 '눈'. 코드 변경/저장과 포커스 신호를 데스크탑 본체로 보낸다.",
+  "version": "0.2.0",
+  "publisher": "kkoji",
+  "license": "MIT",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "configuration": {
+      "title": "꼬질룡 연동",
+      "properties": {
+        "kkojilryong.serverPort": {
+          "type": "number",
+          "default": 8787,
+          "description": "꼬질룡 데스크탑 앱의 로컬 서버 포트."
+        },
+        "kkojilryong.debounceMs": {
+          "type": "number",
+          "default": 1500,
+          "description": "타이핑 멈춤 후 코드를 보내기까지 기다리는 시간(ms)."
+        },
+        "kkojilryong.sendCode": {
+          "type": "boolean",
+          "default": true,
+          "description": "코드 내용을 데스크탑 본체로 보낼지 여부 (끄면 하트비트만)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}

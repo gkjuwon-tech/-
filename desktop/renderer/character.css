@@ -1,0 +1,109 @@
+/* 데스크탑 캐릭터 — 투명 배경 위 검은 선 한 겹 */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+  /* 빈 영역 드래그 → 창 이동 */
+  -webkit-app-region: drag;
+}
+
+#stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.kkoji {
+  width: 130px;
+  height: 130px;
+  color: #141414;
+  cursor: pointer;
+  /* 캐릭터 클릭은 쓰다듬기 → 드래그 영역에서 제외 */
+  -webkit-app-region: no-drag;
+  transition: transform 0.08s steps(2);
+}
+.kkoji svg { width: 100%; height: 100%; display: block; }
+
+.pose {
+  width: 130px;
+  height: 130px;
+  object-fit: contain;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.15));
+}
+.hidden { display: none !important; }
+
+/* 끊기는 게 귀엽다 — steps() (기획서 §5) */
+.kkoji.calm { animation: breathe 2.4s steps(2) infinite; }
+@keyframes breathe { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-3px);} }
+
+.kkoji.focus { animation: stare 0.2s steps(2) infinite; }
+@keyframes stare { 0%{transform:translateX(-1px);} 100%{transform:translateX(1px);} }
+
+.kkoji.joy { animation: dance 0.5s steps(4) infinite; }
+@keyframes dance {
+  0%{transform:rotate(-10deg) translateY(0);}
+  25%{transform:rotate(8deg) translateY(-8px);}
+  50%{transform:rotate(-6deg) translateY(0);}
+  75%{transform:rotate(10deg) translateY(-6px);}
+  100%{transform:rotate(-10deg) translateY(0);}
+}
+
+.kkoji.rage { animation: rage 0.18s steps(2) infinite; }
+.kkoji.rage.lv3, .kkoji.rage.lv4 { animation: ragejump 0.3s steps(3) infinite; }
+@keyframes rage { 0%{transform:translate(-2px,0);} 100%{transform:translate(2px,-2px);} }
+@keyframes ragejump {
+  0%{transform:translateY(0) rotate(-4deg);}
+  50%{transform:translateY(-12px) rotate(4deg);}
+  100%{transform:translateY(0) rotate(-4deg);}
+}
+body.shake { animation: shake 0.12s steps(2) 6; }
+@keyframes shake { 0%{transform:translate(-2px,1px);} 100%{transform:translate(2px,-1px);} }
+
+.kkoji.moved { animation: none; }
+
+/* 졸림/잠 — 꾸벅꾸벅 */
+.kkoji.sleepy { animation: nod 2.2s steps(2) infinite; opacity: 0.92; }
+@keyframes nod { 0%,100%{transform:rotate(0);} 50%{transform:rotate(10deg) translateY(3px);} }
+
+.kkoji.sulk { transform: scaleX(-1); animation: none; opacity: 0.85; }
+.kkoji.worry { animation: none; transform: translateY(-2px) rotate(-3deg); }
+
+body.reduce-motion .kkoji { animation: none !important; }
+
+/* 말풍선 */
+.speech {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  right: 6px;
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #141414;
+  background: #fffef7;
+  border: 1.5px solid #141414;
+  border-radius: 12px 12px 12px 2px;
+  box-shadow: 1px 1px 0 #141414;
+  transform: rotate(-0.6deg);
+  z-index: 2;
+  -webkit-app-region: no-drag;
+}
+.speech.hidden { display: none; }
+
+/* 머리 위 작은 검은 선 표식 (💢 / z / ,) */
+.mark {
+  position: absolute;
+  font-size: 16px;
+  color: #141414;
+  pointer-events: none;
+}
