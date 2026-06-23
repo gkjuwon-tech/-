@@ -1,0 +1,108 @@
+{
+  "name": "kkojilryong",
+  "displayName": "꼬질룡 (KKOJILRYONG)",
+  "description": "코딩 1도 몰랐는데, 네가 좋아서 배웠어. — VS Code 한 구석에 사는 디지털 반려 공룡.",
+  "version": "0.1.0",
+  "publisher": "kkoji",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "keywords": ["pet", "companion", "dinosaur", "gemini", "fun"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kkojilryong",
+          "title": "꼬질룡",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "kkojilryong": [
+        {
+          "type": "webview",
+          "id": "kkojilryong.character",
+          "name": "꼬질룡",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "kkojilryong.setApiKey",
+        "title": "꼬질룡: Gemini API 키 등록 (BYOK)"
+      },
+      {
+        "command": "kkojilryong.openDiary",
+        "title": "꼬질룡: 오늘의 일기 보기"
+      },
+      {
+        "command": "kkojilryong.writeDiaryNow",
+        "title": "꼬질룡: 지금 일기 쓰기"
+      },
+      {
+        "command": "kkojilryong.showMemory",
+        "title": "꼬질룡: 꼬질룡이 아는 것 (기억 통계)"
+      },
+      {
+        "command": "kkojilryong.pet",
+        "title": "꼬질룡: 쓰다듬기"
+      }
+    ],
+    "configuration": {
+      "title": "꼬질룡",
+      "properties": {
+        "kkojilryong.geminiModel": {
+          "type": "string",
+          "default": "gemini-2.0-flash",
+          "description": "대사/평가에 쓰는 Gemini 텍스트 모델."
+        },
+        "kkojilryong.embeddingModel": {
+          "type": "string",
+          "default": "text-embedding-004",
+          "description": "RAG 임베딩에 쓰는 Gemini 임베딩 모델."
+        },
+        "kkojilryong.imageModel": {
+          "type": "string",
+          "default": "gemini-2.0-flash-preview-image-generation",
+          "description": "그때그때 감정 포즈를 생성하는 Gemini 멀티모달 모델. 빈 값이면 미리 만든 SVG만 사용."
+        },
+        "kkojilryong.diaryFolder": {
+          "type": "string",
+          "default": "",
+          "description": "일기 .txt 저장 폴더. 비우면 홈 디렉터리의 '꼬질룡_일기' 사용."
+        },
+        "kkojilryong.debounceMs": {
+          "type": "number",
+          "default": 1500,
+          "description": "타이핑 멈춤 후 코드를 슥 읽기까지 기다리는 시간(ms)."
+        },
+        "kkojilryong.reduceMotion": {
+          "type": "boolean",
+          "default": false,
+          "description": "모션 줄이기 (춤 강도 낮춤)."
+        },
+        "kkojilryong.mute": {
+          "type": "boolean",
+          "default": false,
+          "description": "효과음 음소거 (새벽 코딩 배려)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}
