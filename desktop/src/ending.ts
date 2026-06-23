@@ -8,6 +8,7 @@ import {
   WAITING_TXT,
   RETURN_BEATS,
   TRUE_ENDING_BEATS,
+  NAME_REVEAL_BEATS,
 } from "./core/endingTexts";
 
 export interface EndingDeps {
@@ -91,6 +92,11 @@ export class EndingDirector {
     return this.state.phase === "gone";
   }
 
+  /** 복귀 시퀀스가 재생되는 동안엔 심장의 평소 대사를 누른다(엔딩 톤 보호). */
+  isReturning(): boolean {
+    return this.returning;
+  }
+
   /** 엔딩 이후엔 거의 말하지 않는다 (침묵 곡선의 끝). */
   isQuiet(): boolean {
     return this.state.phase === "returned";
@@ -165,6 +171,13 @@ export class EndingDirector {
     }
     t += 1200;
     setTimeout(() => void this.makeFirstProgram(), t);
+    t += 2400;
+
+    // §3 / EE-14 본명 공개 — 100일이 아니라 엔딩에서 한꺼번에.
+    for (const b of NAME_REVEAL_BEATS) {
+      t += b.gapMs;
+      this.beat(b.pose, b.line, t);
+    }
 
     this.state.phase = "returned";
     await this.persist();

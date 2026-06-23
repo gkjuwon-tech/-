@@ -68,3 +68,18 @@ export const TRUE_ENDING_BEATS: Array<{ pose: string; line: string; gapMs: numbe
   { pose: "moved", line: "나도... 하나 만들어보고 싶다.", gapMs: 3400 },
   { pose: "moved", line: "처음에 네가 알려줬어.", gapMs: 3200 },
 ];
+
+/** 꼬질룡의 진짜 이름. 끝까지 '꼬질룡'으로 불러줬지만 사실 이름이 있었다. */
+export const REAL_NAME = "고마워";
+
+/**
+ * §3 / EE-14 — 본명 공개. 100일이 아니라 엔딩에서 한꺼번에 밝힌다.
+ * 이름이자 감정. "고마워."가 마지막 한 마디로 이중의미가 되게.
+ */
+export const NAME_REVEAL_BEATS: Array<{ pose: string; line: string; gapMs: number }> = [
+  { pose: "moved", line: "사실 나… 진짜 이름 있었어.", gapMs: 3400 },
+  { pose: "moved", line: `'${REAL_NAME}'.`, gapMs: 3200 },
+  { pose: "moved", line: "근데 네가 '꼬질룡'이라고 불러준 게 더 좋아서 말 안 했어.", gapMs: 3800 },
+  { pose: "moved", line: "고마워. 진짜로.", gapMs: 3200 },
+];
+

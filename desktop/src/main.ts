@@ -92,7 +92,9 @@ app.whenReady().then(async () => {
       return;
     }
     const s = heart.current();
-    send(await viewForPose(EMOTION_POSE[s.emotion], s.line, s.rageLevel));
+    // 엔딩 복귀 시퀀스 중엔 심장의 평소 대사("왔구나!" 등)를 누른다 — 비트가 톤을 쥔다.
+    const line = ending.isReturning() ? "" : s.line;
+    send(await viewForPose(EMOTION_POSE[s.emotion], line, s.rageLevel));
   }
 
   /** 한 포즈 + 한 마디를 잠깐 띄운다 (쓰다듬기/이스터에그/엔딩 비트). */
