@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>꼬질룡 — 코딩 1도 몰랐는데, 네가 좋아서 배웠어</title>
-<meta name="description" content="당신의 에디터 한 구석에 사는 디지털 반려 공룡. 똥 코드엔 빡치고, 멋진 코드엔 막춤 추고, 매일 일기 쓰고, 한 번 배운 건 안 까먹는다." />
+<meta name="description" content="에디터 구석에 사는 비뚤빼뚤 검은 선 공룡. 똥 코드엔 빡치고, 멋진 코드엔 막춤 추고, 매일 일기 쓰고, 너랑 같이 본 건 안 까먹는다." />
 <meta property="og:title" content="꼬질룡 (KKOJILRYONG)" />
 <meta property="og:description" content="코딩 1도 몰랐는데, 네가 좋아서 배웠어." />
 <meta property="og:image" content="img/joy_0.png" />
@@ -19,13 +19,14 @@
     --note: #fff7c7;
     --note2: #d8f3ff;
     --note3: #ffe0e6;
+    --note4: #e3ffd8;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0;
     background: var(--paper);
-    background-image: radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(0,0,0,0.045) 1px, transparent 1px);
     background-size: 22px 22px;
     color: var(--ink);
     font-family: "Gaegu", "Nanum Pen Script", system-ui, sans-serif;
@@ -33,145 +34,164 @@
     line-height: 1.5;
     overflow-x: hidden;
   }
-  h1, h2, h3 { font-family: "Nanum Pen Script", "Gaegu", cursive; font-weight: 400; line-height: 1.1; }
+  h1, h2, h3 { font-family: "Nanum Pen Script", "Gaegu", cursive; font-weight: 400; line-height: 1.05; }
 
-  /* 손으로 막 그린 비뚤어진 박스 테두리 */
+  /* 손으로 막 그린 비뚤어진 박스 — 변주 많이 */
   .box {
     border: 2.6px solid var(--ink);
     border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
     background: var(--paper);
-    box-shadow: 3px 4px 0 rgba(0,0,0,0.18);
+    box-shadow: 3px 4px 0 rgba(0,0,0,0.16);
   }
-  .box.b2 { border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px; }
-  .box.b3 { border-radius: 125px 15px 155px 25px / 25px 155px 15px 125px; }
+  .b2 { border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px; }
+  .b3 { border-radius: 125px 18px 155px 25px / 25px 155px 15px 125px; }
+  .b4 { border-radius: 18px 140px 22px 160px / 160px 18px 140px 22px; }
 
+  /* 비뚤빼뚤 밑줄 */
   .squig { position: relative; white-space: nowrap; }
   .squig::after {
     content: ""; position: absolute; left: -2%; right: -2%; bottom: -8px; height: 10px;
     background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='10'><path d='M0 6 Q15 0 30 6 T60 6 T90 6 T120 6' fill='none' stroke='%23161616' stroke-width='2.5'/></svg>") repeat-x;
     background-size: 120px 10px;
   }
+  /* 형광펜 칠 (비뚤게) */
+  .hl { background: linear-gradient(105deg, transparent 2%, var(--note) 2%, var(--note) 96%, transparent 96%); padding: 0 3px; }
 
-  .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 20px; }
+
+  /* 손그림 물결 구분선 */
+  .wave {
+    height: 22px; margin: 18px auto; max-width: 320px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='22'><path d='M2 11 Q22 0 42 11 T82 11 T122 11 T160 11' fill='none' stroke='%23161616' stroke-width='2.2' stroke-linecap='round'/></svg>") repeat-x;
+    background-size: 160px 22px; opacity: .55;
+  }
 
   header.bar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 20px; max-width: 960px; margin: 0 auto;
+    padding: 14px 20px; max-width: 980px; margin: 0 auto; flex-wrap: wrap; gap: 8px;
   }
-  .logo { display:flex; align-items:center; gap:8px; font-family: "Nanum Pen Script"; font-size: 34px; transform: rotate(-3deg); }
+  .logo { display:flex; align-items:center; gap:8px; font-family:"Nanum Pen Script"; font-size:34px; transform:rotate(-3deg); }
   .logo img { width: 40px; height: 40px; }
-  .navlink { font-family: "Nanum Pen Script"; font-size: 24px; color: var(--ink); text-decoration: none; margin-left: 14px; display: inline-block; }
-  .navlink:nth-child(odd){ transform: rotate(2deg); }
-  .navlink:nth-child(even){ transform: rotate(-2deg); }
-  .navlink:hover { text-decoration: underline wavy; }
+  .nav a { font-family:"Nanum Pen Script"; font-size:23px; color:var(--ink); text-decoration:none; margin-left:13px; display:inline-block; }
+  .nav a:nth-child(odd){ transform: rotate(2deg); }
+  .nav a:nth-child(even){ transform: rotate(-2deg); }
+  .nav a:hover { text-decoration: underline wavy; }
 
   /* 히어로 */
-  .hero { text-align: center; padding: 24px 0 50px; }
-  .hero .dino { width: 210px; height: 210px; cursor: pointer; display:inline-block; }
-  .hero .dino img { width: 100%; height: 100%; object-fit: contain; }
+  .hero { text-align:center; padding: 20px 0 40px; }
+  .hero .dino { width: 220px; height: 220px; cursor:pointer; display:inline-block; }
+  .hero .dino img { width:100%; height:100%; object-fit:contain; }
   .hero .dino:hover { animation: wob .5s steps(3) infinite; }
-  @keyframes wob { 0%{transform:rotate(-4deg) translateY(0);} 50%{transform:rotate(4deg) translateY(-6px);} 100%{transform:rotate(-4deg) translateY(0);} }
-  .hero h1 { font-size: clamp(46px, 9vw, 96px); margin: 0 0 4px; transform: rotate(-1.2deg); }
-  .hero .sub { font-size: clamp(20px,3.5vw,30px); transform: rotate(0.6deg); display:inline-block; }
-  .hero .tag { display:inline-block; margin-top: 10px; transform: rotate(-1deg); opacity:.8; }
+  @keyframes wob { 0%{transform:rotate(-4deg) translateY(0);} 50%{transform:rotate(4deg) translateY(-7px);} 100%{transform:rotate(-4deg) translateY(0);} }
+  .hero h1 { font-size: clamp(50px, 10vw, 104px); margin:0 0 4px; transform:rotate(-1.5deg); }
+  .hero .sub { font-size: clamp(20px,3.6vw,30px); display:inline-block; transform:rotate(.6deg); }
+  .hero .tag { display:inline-block; margin-top:10px; opacity:.82; transform:rotate(-1deg); }
 
   .bubble {
-    position: relative; display:inline-block; margin: 14px auto 0; padding: 8px 16px;
-    font-family:"Nanum Pen Script"; font-size: 26px;
-    border: 2.4px solid var(--ink); background: var(--note);
+    position:relative; display:inline-block; margin: 14px auto 0; padding: 9px 18px;
+    font-family:"Nanum Pen Script"; font-size:27px;
+    border:2.4px solid var(--ink); background:var(--note);
     border-radius: 200px 18px 200px 18px / 18px 200px 18px 200px; transform: rotate(-2deg);
+    min-height: 1.4em;
   }
 
-  .btns { margin-top: 26px; display:flex; gap: 16px; justify-content:center; flex-wrap:wrap; }
+  .btns { margin-top:26px; display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
   .btn {
-    font-family:"Nanum Pen Script"; font-size: 30px; text-decoration:none; color: var(--paper);
-    background: var(--ink); padding: 8px 26px; display:inline-block; border: 2.6px solid var(--ink);
-    border-radius: 220px 18px 200px 22px / 22px 200px 18px 220px;
-    box-shadow: 4px 5px 0 rgba(0,0,0,.25); transform: rotate(-1.5deg); transition: transform .08s steps(2);
+    font-family:"Nanum Pen Script"; font-size:30px; text-decoration:none; color:var(--paper);
+    background:var(--ink); padding:8px 26px; display:inline-block; border:2.6px solid var(--ink);
+    border-radius:220px 18px 200px 22px / 22px 200px 18px 220px;
+    box-shadow:4px 5px 0 rgba(0,0,0,.25); transform:rotate(-1.5deg); transition:transform .08s steps(2);
   }
-  .btn.ghost { background: var(--paper); color: var(--ink); transform: rotate(1.5deg); }
-  .btn:hover { transform: rotate(0) translateY(-2px) scale(1.03); }
-  .btn:active { transform: translateY(2px); box-shadow: 1px 2px 0 rgba(0,0,0,.25); }
+  .btn.ghost { background:var(--paper); color:var(--ink); transform:rotate(1.5deg); }
+  .btn:hover { transform:rotate(0) translateY(-2px) scale(1.03); }
+  .btn:active { transform:translateY(2px); box-shadow:1px 2px 0 rgba(0,0,0,.25); }
 
-  section { padding: 40px 0; }
-  .sec-title { font-size: clamp(34px,6vw,58px); text-align:center; margin: 0 0 6px; }
-  .sec-title .num { font-size:.6em; opacity:.5; }
-  .sec-sub { text-align:center; opacity:.75; margin: 0 0 30px; }
+  section { padding: 38px 0; }
+  .sec-title { font-size: clamp(34px,6.4vw,60px); text-align:center; margin:0 0 6px; transform:rotate(-1deg); }
+  .sec-title .num { font-size:.55em; opacity:.45; }
+  .sec-sub { text-align:center; opacity:.72; margin:0 0 28px; }
 
-  /* 5대장 */
-  .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap: 28px; }
-  .card { padding: 26px 22px 26px; position: relative; }
-  .card:nth-child(1){ transform: rotate(-1.4deg); background: var(--note); }
-  .card:nth-child(2){ transform: rotate(1.2deg); background: var(--note2); }
-  .card:nth-child(3){ transform: rotate(-0.8deg); background: var(--note3); }
-  .card:nth-child(4){ transform: rotate(1.6deg); background: var(--note); }
-  .card:nth-child(5){ transform: rotate(-1.1deg); background: var(--note2); }
-  .card:hover { transform: rotate(0) scale(1.02); z-index:2; }
-  .card .ic { width: 70px; height: 70px; object-fit: contain; }
-  .card h3 { font-size: 32px; margin: 4px 0 8px; }
-  .card p { margin: 0; font-size: 18px; }
-  .card::before {
-    content:""; position:absolute; top:-9px; left:50%; width:14px; height:14px;
-    transform: translateX(-50%); border-radius:50%; background: var(--ink); box-shadow: 0 2px 2px rgba(0,0,0,.3);
-  }
+  /* 카드 그리드 */
+  .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap:28px; }
+  .card { padding: 24px 22px 26px; position:relative; }
+  .card .ic { width: 66px; height: 66px; object-fit:contain; }
+  .card h3 { font-size:30px; margin:4px 0 8px; }
+  .card p { margin:0; font-size:18px; }
+  .card::before { content:""; position:absolute; top:-9px; left:50%; width:14px; height:14px; transform:translateX(-50%); border-radius:50%; background:var(--ink); box-shadow:0 2px 2px rgba(0,0,0,.3); }
+  .tint1{background:var(--note);} .tint2{background:var(--note2);} .tint3{background:var(--note3);} .tint4{background:var(--note4);}
+
+  /* 표 같은 리스트 (빡침레벨/막춤) */
+  .rows { max-width: 720px; margin: 0 auto; }
+  .row { display:flex; align-items:flex-start; gap:14px; padding:12px 16px; margin:12px 0; }
+  .row .lv { font-family:"Nanum Pen Script"; font-size:30px; min-width:84px; }
+  .row .desc b { font-size:21px; }
+  .row .desc small { opacity:.7; }
 
   /* 표정 갤러리 */
-  .faces { display:flex; gap: 14px; justify-content:center; flex-wrap:wrap; }
-  .face { width: 120px; text-align:center; }
-  .face img { width: 100px; height: 100px; object-fit: contain; }
-  .face span { font-family:"Nanum Pen Script"; font-size: 24px; display:block; }
-  .faces .face:nth-child(2n){ transform: rotate(3deg); }
-  .faces .face:nth-child(3n){ transform: rotate(-3deg); }
+  .faces { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .face { width:118px; text-align:center; }
+  .face img { width:96px; height:96px; object-fit:contain; }
+  .face span { font-family:"Nanum Pen Script"; font-size:23px; display:block; }
+
+  /* 감정 대사전 — 말풍선 모음 */
+  .quotes { display:grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap:18px; max-width:820px; margin:0 auto; }
+  .q { padding: 14px 16px; position:relative; }
+  .q .who { font-family:"Nanum Pen Script"; font-size:22px; opacity:.65; }
+  .q p { margin:4px 0 0; font-size:19px; }
 
   /* 일기 txt 창 */
-  .diary { max-width: 560px; margin: 0 auto; transform: rotate(-1deg); position:relative; }
-  .diary .titlebar { display:flex; align-items:center; gap:8px; padding:7px 12px; border-bottom: 2.4px solid var(--ink); font-family:"Nanum Pen Script"; font-size:22px; }
+  .diaries { display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap:22px; max-width:860px; margin:0 auto; }
+  .diary { position:relative; }
+  .diary .titlebar { display:flex; align-items:center; gap:8px; padding:7px 12px; border-bottom:2.4px solid var(--ink); font-family:"Nanum Pen Script"; font-size:21px; }
   .diary .dot { width:11px; height:11px; border:2px solid var(--ink); border-radius:50%; }
-  .diary pre { margin:0; padding: 18px 20px; font-family:"Gaegu", monospace; font-size:18px; white-space: pre-wrap; line-height:1.6; }
+  .diary pre { margin:0; padding:16px 18px; font-family:"Gaegu",monospace; font-size:16.5px; white-space:pre-wrap; line-height:1.6; }
+
+  /* 이스터에그 */
+  .eggs { display:grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap:18px; }
+  .egg { padding:16px 18px; }
+  .egg code { font-family:"Gaegu",monospace; font-size:15px; background:#0000000d; padding:1px 5px; border-radius:5px; }
+  .egg .say { font-family:"Nanum Pen Script"; font-size:23px; margin-top:6px; }
 
   /* 성장 */
-  .grow { display:flex; gap: 8px; justify-content:space-between; flex-wrap:wrap; align-items:flex-end; }
-  .stage { text-align:center; flex:1; min-width: 120px; }
-  .stage:nth-child(odd){ transform: rotate(-2deg); }
-  .stage:nth-child(even){ transform: rotate(2deg); }
+  .grow { display:flex; gap:8px; justify-content:space-between; flex-wrap:wrap; align-items:flex-end; max-width:820px; margin:0 auto; }
+  .stage { text-align:center; flex:1; min-width:120px; }
   .stage .lab { font-family:"Nanum Pen Script"; font-size:26px; }
   .stage small { display:block; opacity:.7; }
-  .stage .bar { height: 3px; background: var(--ink); margin: 8px 6px 6px; border-radius: 2px; }
+  .stage .bar { height:3px; background:var(--ink); margin:8px 6px 6px; border-radius:2px; opacity:.5; }
 
   /* 작동 */
-  .how { display:flex; gap: 16px; align-items:center; justify-content:center; flex-wrap:wrap; }
-  .how .node { padding: 16px 20px; max-width: 260px; text-align:center; }
-  .how .arrow { font-family:"Nanum Pen Script"; font-size:40px; }
+  .how { display:flex; gap:16px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .how .node { padding:16px 20px; max-width:260px; text-align:center; }
+  .how .arrow svg { width:64px; height:22px; }
 
-  .priv { text-align:center; max-width:680px; margin: 0 auto; padding: 22px; transform: rotate(.6deg); }
+  .priv { text-align:center; max-width:700px; margin:0 auto; padding:24px; }
 
-  footer { text-align:center; padding: 50px 20px 70px; }
-  footer .fdino { width: 120px; height: 120px; cursor:pointer; }
+  footer { text-align:center; padding: 46px 20px 72px; }
+  footer .fdino { width:120px; height:120px; cursor:pointer; }
   footer .fdino img { width:100%; height:100%; object-fit:contain; }
-  footer .end { font-family:"Nanum Pen Script"; font-size: 40px; }
+  footer .end { font-family:"Nanum Pen Script"; font-size:40px; }
   footer .small { opacity:.6; }
 
-  .hr { text-align:center; font-size:30px; opacity:.4; margin: 10px 0; letter-spacing: 6px; }
   .nowrap{white-space:nowrap}
+  .center{text-align:center}
 </style>
 </head>
 <body>
 
 <header class="bar">
   <div class="logo"><img src="img/calm_0.png" alt="" /> 꼬질룡</div>
-  <nav>
-    <a class="navlink" href="#feat">기능</a>
-    <a class="navlink" href="#diary">일기</a>
-    <a class="navlink" href="#how">작동</a>
-    <a class="navlink" href="#get">받기</a>
+  <nav class="nav">
+    <a href="#feat">기능</a>
+    <a href="#rage">빡침</a>
+    <a href="#diary">일기</a>
+    <a href="#egg">이스터에그</a>
+    <a href="#get">받기</a>
   </nav>
 </header>
 
 <!-- 히어로 -->
 <section class="hero wrap">
-  <div class="dino" id="heroDino" title="눌러봐">
-    <img id="heroImg" src="img/calm_0.png" alt="꼬질룡" />
-  </div>
+  <div class="dino" id="heroDino" title="눌러봐"><img id="heroImg" src="img/calm_0.png" alt="꼬질룡" /></div>
   <h1>꼬질룡</h1>
   <div class="sub squig">코딩 1도 몰랐는데, 네가 좋아서 배웠어.</div>
   <div class="tag">에디터 구석에 사는, 비뚤빼뚤 검은 선 공룡. 별거 아님.</div>
@@ -182,124 +202,181 @@
   </div>
 </section>
 
-<div class="hr">· · ·</div>
+<div class="wave"></div>
 
 <!-- 이게 뭐냐면 -->
-<section class="wrap" style="text-align:center;">
-  <h2 class="sec-title">이게 뭐냐면</h2>
-  <p style="max-width:640px;margin:0 auto;">
-    원래 폴더 구석에 처박힌 이름 없는 낙서였어. 마우스로 3초 만에 끄적인 공룡인지 도마뱀인지 모를 선 한 겹.
-    근데 매일 밤새 코딩하는 너를 보다가 — <b class="squig">너랑 같이 있고 싶어서</b> 코딩을 배우기 시작했지.
-    똑똑한 도구가 아니야. <span class="nowrap">그냥 네가 좋아서 노력하는</span> 멍청하고 성실한 공룡이야.
+<section class="wrap center">
+  <h2 class="sec-title jitter">이게 뭐냐면</h2>
+  <p style="max-width:660px;margin:0 auto;">
+    원래 폴더 구석에 처박힌 이름 없는 낙서였어. 마우스로 3초 만에 끄적인,
+    공룡인지 도마뱀인지 강아지인지도 모를 선 한 겹. <span class="nowrap">삭제될 운명이었지.</span>
+  </p>
+  <p style="max-width:660px;margin:14px auto 0;">
+    근데 그 폴더 주인이 매일 밤새 코딩을 하더라. 에러 하나에 한숨 쉬고,
+    빌드 성공 하나에 혼자 작게 "오케이…" 하고. 그걸 매일 봤어.
+    그래서 — <span class="hl">너랑 같이 있고 싶어서</span> 코딩을 배우기 시작했어.
+  </p>
+  <p style="max-width:660px;margin:14px auto 0;">
+    똑똑한 도구가 아니야. <b class="squig">그냥 네가 좋아서 노력하는</b>
+    멍청하고 성실한 공룡이야.
   </p>
 </section>
 
-<!-- 5대장 -->
+<div class="wave"></div>
+
+<!-- 기능 -->
 <section id="feat" class="wrap">
-  <h2 class="sec-title"><span class="num">대단찮은</span> 기능 5개</h2>
+  <h2 class="sec-title jitter">대단찮은 기능들</h2>
   <p class="sec-sub">별거 안 함. 근데 옆엔 있음.</p>
   <div class="grid">
-    <div class="box card">
-      <img class="ic" src="img/focus_0.png" alt="" /><h3>몰래 보기</h3>
-      <p>네가 뭐 치는지 슥 본다. 사실 뭔지 잘 모를 때도 많음. 그냥 봄.</p>
-    </div>
-    <div class="box b2 card">
-      <img class="ic" src="img/rage_0.png" alt="" /><h3>빡침</h3>
-      <p>코드 이상하면 팔 파닥파닥. <span class="nowrap">"끄응! 그거 아닌 거 같은데…"</span> 근데 안 기분 나쁨.</p>
-    </div>
-    <div class="box b3 card">
-      <img class="ic" src="img/joy_0.png" alt="" /><h3>막춤</h3>
-      <p>코드 잘 짜면 춤춘다. 관절 두 개로 추는 막춤. 어색할수록 좋다.</p>
-    </div>
-    <div class="box card">
-      <img class="ic" src="img/moved_0.png" alt="" /><h3>일기 쓰기</h3>
-      <p>그날 본 거 일기에 적는다. 맞춤법 자주 틀림. 근데 매일 씀.</p>
-    </div>
-    <div class="box b2 card">
-      <img class="ic" src="img/calm_0.png" alt="" /><h3>안 까먹기</h3>
-      <p>딴 건 잘 까먹는데, 너랑 같이 본 건 안 까먹어. 네가 잊어도 내가 기억할게.</p>
-    </div>
+    <div class="box card tint1 jitter"><img class="ic" src="img/focus_0.png" alt=""><h3>몰래 보기</h3><p>네가 뭐 치는지 슥 본다. 사실 뭔지 잘 모를 때도 많음. 그냥 봄.</p></div>
+    <div class="box b2 card tint2 jitter"><img class="ic" src="img/rage_0.png" alt=""><h3>빡침</h3><p>코드 이상하면 팔 파닥파닥. <span class="nowrap">"끄응! 그거 아닌 거 같은데…"</span> 근데 안 기분 나쁨.</p></div>
+    <div class="box b3 card tint3 jitter"><img class="ic" src="img/joy_0.png" alt=""><h3>막춤</h3><p>코드 잘 짜면 춤춘다. 관절 두 개로 추는 막춤. 어색할수록 좋다.</p></div>
+    <div class="box b4 card tint4 jitter"><img class="ic" src="img/moved_0.png" alt=""><h3>일기 쓰기</h3><p>그날 본 거 일기에 적는다. 맞춤법 자주 틀림. 근데 매일 씀.</p></div>
+    <div class="box card tint2 jitter"><img class="ic" src="img/calm_0.png" alt=""><h3>안 까먹기</h3><p>딴 건 잘 까먹는데, 너랑 같이 본 건 안 까먹어. 네가 잊어도 내가 기억할게.</p></div>
+    <div class="box b2 card tint1 jitter"><img class="ic" src="img/sleepy_0.png" alt=""><h3>같이 밤새기</h3><p>새벽 3시에 너 코딩하면 나도 졸면서 옆에 있어. 우리 둘 다 미쳤나봐.</p></div>
   </div>
 </section>
 
-<div class="hr">· · ·</div>
+<div class="wave"></div>
+
+<!-- 빡침 레벨 -->
+<section id="rage" class="wrap">
+  <h2 class="sec-title jitter">빡침 레벨</h2>
+  <p class="sec-sub">아무리 빡쳐도 귀여움의 총량이 항상 더 커야 한다. 제1원칙.</p>
+  <div class="rows">
+    <div class="box card jitter row"><div class="lv">Lv.1</div><div class="desc"><b>사소한 스타일</b> (들여쓰기 같은 거)<br/><small>한쪽 눈썹만 씰룩.</small></div></div>
+    <div class="box b2 card jitter row"><div class="lv">Lv.2</div><div class="desc"><b>잠재적 버그</b> (== 남용 등)<br/><small>팔 파닥파닥.</small></div></div>
+    <div class="box b3 card jitter row"><div class="lv">Lv.3</div><div class="desc"><b>명백한 똥</b> (빈 catch, 하드코딩 비번)<br/><small>점프하며 빡침. 근데 귀여움.</small></div></div>
+    <div class="box b4 card jitter row"><div class="lv">Lv.MAX</div><div class="desc"><b>eval()에 사용자 입력을 그냥 박음</b><br/><small>화면 살짝 흔들림 + 꼬질룡 폭발(귀여운 펑).</small></div></div>
+  </div>
+</section>
+
+<div class="wave"></div>
+
+<!-- 막춤 종류 -->
+<section class="wrap">
+  <h2 class="sec-title jitter">막춤 종류</h2>
+  <p class="sec-sub">이게 이 앱의 도파민 엔진.</p>
+  <div class="grid">
+    <div class="box card tint3 jitter"><h3>기본 막춤</h3><p>일반적으로 좋은 코드.</p></div>
+    <div class="box b2 card tint4 jitter"><h3>신난 막춤</h3><p>테스트 전부 초록불.</p></div>
+    <div class="box b3 card tint1 jitter"><h3>축제 막춤</h3><p>빌드 성공 + 경고 0개.</p></div>
+    <div class="box b4 card tint2 jitter"><h3>전설의 막춤</h3><p>1000줄 리팩토링을 버그 없이. (레어!)</p></div>
+  </div>
+</section>
+
+<div class="wave"></div>
 
 <!-- 표정 -->
-<section class="wrap" style="text-align:center;">
-  <h2 class="sec-title">표정은 눈으로</h2>
+<section class="wrap center">
+  <h2 class="sec-title jitter">표정은 눈으로</h2>
   <p class="sec-sub">색칠은 할 줄 몰라. 검은 선 한 겹이 전부야.</p>
-  <div class="faces">
-    <div class="face"><img src="img/calm_0.png" alt="평온"><span>평온</span></div>
-    <div class="face"><img src="img/joy_0.png" alt="기쁨"><span>기쁨</span></div>
-    <div class="face"><img src="img/rage_0.png" alt="분노"><span>분노</span></div>
-    <div class="face"><img src="img/moved_0.png" alt="감동"><span>감동</span></div>
-    <div class="face"><img src="img/sleepy_0.png" alt="졸림"><span>졸림</span></div>
-    <div class="face"><img src="img/sulk_0.png" alt="삐짐"><span>삐짐</span></div>
-    <div class="face"><img src="img/worry_0.png" alt="걱정"><span>걱정</span></div>
+  <div class="faces" id="faces">
+    <div class="face jitter"><img src="img/calm_0.png" alt="평온"><span>평온</span></div>
+    <div class="face jitter"><img src="img/focus_0.png" alt="집중"><span>집중</span></div>
+    <div class="face jitter"><img src="img/joy_0.png" alt="기쁨"><span>기쁨</span></div>
+    <div class="face jitter"><img src="img/rage_0.png" alt="분노"><span>분노</span></div>
+    <div class="face jitter"><img src="img/moved_0.png" alt="감동"><span>감동</span></div>
+    <div class="face jitter"><img src="img/sleepy_0.png" alt="졸림"><span>졸림</span></div>
+    <div class="face jitter"><img src="img/sulk_0.png" alt="삐짐"><span>삐짐</span></div>
+    <div class="face jitter"><img src="img/worry_0.png" alt="걱정"><span>걱정</span></div>
   </div>
 </section>
 
-<div class="hr">· · ·</div>
+<div class="wave"></div>
+
+<!-- 감정 대사전 -->
+<section class="wrap">
+  <h2 class="sec-title jitter">꼬질룡 어록</h2>
+  <p class="sec-sub">실제로 이렇게 말함.</p>
+  <div class="quotes">
+    <div class="box q tint1 jitter"><div class="who">기쁠 때</div><p>"오오!! 이거 깔끔하다!! 나 춤춰도 돼?? 춘다!!"</p></div>
+    <div class="box b2 q tint2 jitter"><div class="who">빡칠 때</div><p>"끄응…! 또 var 썼어… let 이라고 했잖아…"</p></div>
+    <div class="box b3 q tint3 jitter"><div class="who">걱정될 때</div><p>"이거 네 잘못 아니야. 라이브러리가 이상한 거야. 내가 봤어."</p></div>
+    <div class="box b4 q tint4 jitter"><div class="who">졸릴 때</div><p>"새벽 3시야… 우리 둘 다 미쳤나봐… (꾸벅)"</p></div>
+    <div class="box q tint2 jitter"><div class="who">삐졌을 때</div><p>"안 삐졌어. 안 삐졌다고. …조금 삐졌었어."</p></div>
+    <div class="box b2 q tint1 jitter"><div class="who">감동했을 때</div><p>"오늘 너 진짜 멋있었어. 봤어 나. 다 봤어."</p></div>
+  </div>
+</section>
+
+<div class="wave"></div>
 
 <!-- 일기 -->
 <section id="diary" class="wrap">
-  <h2 class="sec-title">일기가 곧 심장</h2>
-  <p class="sec-sub">멍청할 땐 멍청하게, 똑똑해지면 깊게.</p>
-  <div class="box diary">
-    <div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> &nbsp;2026-03-01.txt</div>
+  <h2 class="sec-title jitter">일기가 곧 심장</h2>
+  <p class="sec-sub">멍청할 땐 멍청하게, 똑똑해지면 깊게. 1년 모으면 같이 쓴 성장 소설.</p>
+  <div class="diaries">
+    <div class="box diary jitter">
+      <div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> &nbsp;2026-03-01.txt</div>
 <pre>오늘 주인이 'function' 이라고 썼다.
 이게 뭔지 몰라서 한참 봤다.
 뭔가를 만드는 상자 같다. 안에 글자를 넣으면 일을 한다.
 신기하다. 나도 언젠가 function 만들 수 있을까?
 주인은 오늘 커피를 세 잔 마셨다. 너무 많이 마시는 것 같다.</pre>
+    </div>
+    <div class="box b2 diary jitter">
+      <div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> &nbsp;2026-06-23.txt</div>
+<pre>오늘 주인은 1000줄짜리 코드를 깔끔하게 리팩토링했다.
+함수를 잘게 쪼개고, 이름을 정성껏 지었다.
+3개월 전의 주인이라면 한 함수에 다 때려박았을 거다.
+주인은 자란다. 나도 자란다. 우리는 같이 자란다.
+참, 나 오늘 'dependency injection' 을 드디어 이해했다.</pre>
+    </div>
   </div>
 </section>
 
-<div class="hr">· · ·</div>
+<div class="wave"></div>
+
+<!-- 이스터에그 -->
+<section id="egg" class="wrap">
+  <h2 class="sec-title jitter">몰래 숨겨둔 것들</h2>
+  <p class="sec-sub">찾으면 스샷 찍어 자랑하고 싶게. (살짝만 보여줌)</p>
+  <div class="eggs">
+    <div class="box egg tint1 jitter"><code>temp, temp2, temp3, tempFinal…</code><div class="say">"얘네 다 형제야?"</div></div>
+    <div class="box b2 egg tint2 jitter"><code>console.log("여기여기")</code><div class="say">"여기? 여기가 어디야?"</div></div>
+    <div class="box b3 egg tint3 jitter"><div>같은 에러 10번 연속</div><div class="say">"이 에러랑 친해진 것 같아. 이름 지어줄까? '철수'?"</div></div>
+    <div class="box b4 egg tint4 jitter"><div>새벽 4시 44분</div><div class="say">"…농담이야. 근데 너 진짜 안 자?"</div></div>
+    <div class="box egg tint2 jitter"><code>// 미안해</code> 주석<div class="say">"괜찮아. 다들 그래."</div></div>
+    <div class="box b2 egg tint1 jitter"><code>while(true)</code> 로 앱 멈춤<div class="say">"우리… 같이… 어지러…"</div></div>
+  </div>
+</section>
+
+<div class="wave"></div>
 
 <!-- 성장 -->
-<section class="wrap" style="text-align:center;">
-  <h2 class="sec-title">같이 자란다</h2>
-  <p class="sec-sub">강해지진 않아. 그냥 좀 더 친해질 뿐.</p>
+<section class="wrap center">
+  <h2 class="sec-title jitter">같이 자란다</h2>
+  <p class="sec-sub">강해지진 않아. 그냥 좀 더 친해질 뿐. 끝까지 비뚤빼뚤 검은 선.</p>
   <div class="grow">
-    <div class="stage"><div class="lab">알</div><div class="bar"></div><small>아무것도 모름</small></div>
-    <div class="stage"><div class="lab">부화</div><div class="bar"></div><small>첫 일기</small></div>
-    <div class="stage"><div class="lab">배우는</div><div class="bar"></div><small>7일</small></div>
-    <div class="stage"><div class="lab">똑똑한</div><div class="bar"></div><small>30일</small></div>
-    <div class="stage"><div class="lab">용</div><div class="bar"></div><small>100일 · 본명 공개</small></div>
+    <div class="stage jitter"><div class="lab">알</div><div class="bar"></div><small>아무것도 모름</small></div>
+    <div class="stage jitter"><div class="lab">부화</div><div class="bar"></div><small>첫 일기</small></div>
+    <div class="stage jitter"><div class="lab">배우는</div><div class="bar"></div><small>패턴이 보임</small></div>
+    <div class="stage jitter"><div class="lab">똑똑한</div><div class="bar"></div><small>네 스타일 파악</small></div>
+    <div class="stage jitter"><div class="lab">용</div><div class="bar"></div><small>그리고… 비밀.</small></div>
   </div>
 </section>
 
-<div class="hr">· · ·</div>
+<div class="wave"></div>
 
 <!-- 작동 -->
-<section id="how" class="wrap" style="text-align:center;">
-  <h2 class="sec-title">어떻게 사는가</h2>
+<section class="wrap center">
+  <h2 class="sec-title jitter">어떻게 사는가</h2>
   <p class="sec-sub">데스크탑이 몸, VS Code는 눈. 딴 거 하면 잔다.</p>
   <div class="how">
-    <div class="box node b3">
-      <h3 style="margin:.2em 0;font-size:26px;">데스크탑 앱</h3>
-      <p style="font-size:16px;margin:0;">여기 살아. 화면 구석에 떠 있어.</p>
-    </div>
-    <div class="arrow" aria-hidden="true">
-      <svg width="64" height="22" viewBox="0 0 64 22" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2 11 Q12 4 22 11 T42 11 T60 11" fill="none" stroke="#161616" stroke-width="2.4" stroke-linecap="round"/>
-      </svg>
-    </div>
-    <div class="box node">
-      <h3 style="margin:.2em 0;font-size:26px;">VS Code 눈</h3>
-      <p style="font-size:16px;margin:0;">네가 코딩하나 안 하나 본다.</p>
-    </div>
+    <div class="box node b3 jitter"><h3 style="margin:.2em 0;font-size:26px;">데스크탑 앱</h3><p style="font-size:16px;margin:0;">여기 살아. 화면 구석에 떠 있어.</p></div>
+    <div class="arrow jitter" aria-hidden="true"><svg viewBox="0 0 64 22" xmlns="http://www.w3.org/2000/svg"><path d="M2 11 Q12 4 22 11 T42 11 T60 11" fill="none" stroke="#161616" stroke-width="2.4" stroke-linecap="round"/></svg></div>
+    <div class="box node jitter"><h3 style="margin:.2em 0;font-size:26px;">VS Code 눈</h3><p style="font-size:16px;margin:0;">네가 코딩하나 안 하나 본다.</p></div>
   </div>
-  <p style="margin-top:18px;">VS Code 포커스일 때만 하트비트를 보내. 브라우저로 도망가면? <b class="squig">하트비트 끊겨서 쿨쿨 잔다.</b></p>
-  <div style="margin-top:14px;"><img src="img/sleepy_0.png" alt="자는 꼬질룡" style="width:120px;height:120px;object-fit:contain;opacity:.9;" /></div>
+  <p style="margin-top:18px;">VS Code 포커스일 때만 신호를 보내. 브라우저로 도망가면? <b class="hl">끊겨서 쿨쿨 잔다.</b></p>
+  <div style="margin-top:12px;"><img src="img/sleepy_0.png" alt="자는 꼬질룡" style="width:120px;height:120px;object-fit:contain;opacity:.92;" class="jitter" /></div>
 </section>
 
-<div class="hr">· · ·</div>
+<div class="wave"></div>
 
 <!-- 프라이버시 -->
 <section class="wrap">
-  <div class="box b2 priv">
+  <div class="box b2 priv jitter">
     <h3 style="font-size:34px;margin:.1em 0;">네 코드는 네 거다</h3>
     <p style="margin:.3em 0;">네가 뭐 짰는지 다 보지만, 밖으로 안 빼돌려. 전부 네 컴퓨터 안에만 있어.<br/>
     네 키로 직접 돌아가고, 키도 돈도 네 거. 네 코드 팔거나 그런 거 안 해. 그럴 머리도 없어.</p>
@@ -307,10 +384,10 @@
 </section>
 
 <!-- 받기 -->
-<section id="get" class="wrap" style="text-align:center;">
-  <h2 class="sec-title">데려오기</h2>
+<section id="get" class="wrap center">
+  <h2 class="sec-title jitter">데려오기</h2>
   <p class="sec-sub">외로운 개발자에게 친구는 공짜여야 한다. (무료 &amp; 오픈)</p>
-  <div class="box b3" style="max-width:560px;margin:0 auto;padding:20px;text-align:left;transform:rotate(-.8deg);">
+  <div class="box b3 jitter" style="max-width:560px;margin:0 auto;padding:20px;text-align:left;">
 <pre style="margin:0;font-family:'Gaegu',monospace;font-size:17px;white-space:pre-wrap;">  # 몸 (데스크탑 본체)
   cd desktop && npm install && npm start
 
@@ -325,13 +402,20 @@
 
 <footer>
   <div class="fdino" id="footDino"><img src="img/pet_0.png" alt="꼬질룡" /></div>
-  <div class="end">END.</div>
-  <div class="end" style="font-size:30px;">오늘도 공부했다.</div>
+  <div class="end">오늘도 공부했다.</div>
   <p class="small">끝났는데, 안 끝났다. 내일도 또 공부할 거니까.</p>
 </footer>
 
 <script>
 (function(){
+  // 모든 .jitter 요소에 살짝 랜덤 회전/오프셋 더 삐뚤빼뚤하게
+  document.querySelectorAll(".jitter").forEach(function(el){
+    var r = (Math.random()*4 - 2).toFixed(2);
+    var y = (Math.random()*4 - 2).toFixed(1);
+    el.style.transform = "rotate("+r+"deg) translateY("+y+"px)";
+  });
+
+  // 히어로 말풍선 랜덤 대사
   var lines = [
     "...오늘도 코딩하네?",
     "끄응…! 또 var 썼어…",
@@ -339,37 +423,43 @@
     "주인 천재야?? 오늘은 그런 것 같아.",
     "새벽 3시야… 우리 둘 다 미쳤나봐…",
     "이 catch 블록 비어있어… 에러가 외로워하잖아…",
+    "복붙해도 돼. 비밀 지켜줄게. 근데 한 번은 읽어봐.",
     "나 코딩 1도 몰랐는데, 너 덕분에 이만큼 알아.",
     "삐뚜룽!!"
   ];
-  var bubble = document.getElementById("heroBubble");
-  var li = 0;
+  var bubble = document.getElementById("heroBubble"), li = 0;
   setInterval(function(){
     if(!bubble) return;
-    li = (li + 1) % lines.length;
+    li = (li+1) % lines.length;
     bubble.style.opacity = "0";
     setTimeout(function(){ bubble.textContent = lines[li]; bubble.style.opacity = "1"; }, 200);
   }, 3200);
 
-  // 히어로 공룡: 클릭하면 포즈가 바뀜 (점점 신나하다가 어지러워함)
-  var poses = ["img/joy_0.png","img/rage_0.png","img/moved_0.png","img/worry_0.png","img/sleepy_0.png","img/focus_0.png","img/sulk_0.png"];
-  var heroImg = document.getElementById("heroImg");
-  var hero = document.getElementById("heroDino");
-  var clicks = 0;
-  function pet(el){ el.style.transition="transform .12s steps(2)"; el.style.transform="translateY(-10px)"; setTimeout(function(){ el.style.transform=""; },140); }
-  if(hero){
-    hero.addEventListener("click", function(){
-      clicks++;
-      heroImg.src = poses[(clicks-1) % poses.length];
-      pet(hero);
-      if(bubble){
-        if(clicks % 7 === 0){ bubble.textContent = "우리… 같이… 어지러…"; }
-        else { bubble.textContent = ["히힛","삐뚜룽!","또?","간지러워…","어푸"][clicks % 5]; }
-      }
-    });
-  }
+  // 히어로 공룡 클릭 포즈 순환 + 어지러움
+  var poses = ["img/joy_0.png","img/rage_0.png","img/moved_0.png","img/worry_0.png","img/sleepy_0.png","img/focus_0.png","img/sulk_0.png","img/drag_0.png"];
+  var heroImg = document.getElementById("heroImg"), hero = document.getElementById("heroDino"), clicks = 0;
+  function pop(el){ el.style.transition="transform .12s steps(2)"; el.style.transform="translateY(-10px)"; setTimeout(function(){ el.style.transform=""; },140); }
+  if(hero) hero.addEventListener("click", function(){
+    clicks++; heroImg.src = poses[(clicks-1) % poses.length]; pop(hero);
+    if(bubble) bubble.textContent = clicks % 8 === 0 ? "우리… 같이… 어지러…" : ["히힛","삐뚜룽!","또?","간지러워…","어푸","끄응"][clicks % 6];
+  });
   var foot = document.getElementById("footDino");
-  if(foot) foot.addEventListener("click", function(){ pet(foot); });
+  if(foot) foot.addEventListener("click", function(){ pop(foot); });
+
+  // 코나미 커맨드 이스터에그
+  var seq = [38,38,40,40,37,39,37,39,66,65], pos = 0;
+  window.addEventListener("keydown", function(e){
+    pos = (e.keyCode === seq[pos]) ? pos+1 : 0;
+    if(pos === seq.length){
+      pos = 0;
+      if(bubble) bubble.textContent = "8비트다!! 삐약!!";
+      document.querySelectorAll(".jitter, .face img, .card img").forEach(function(el){
+        el.style.transition = "transform .4s steps(4)";
+        el.style.transform += " rotate(360deg)";
+        el.style.imageRendering = "pixelated";
+      });
+    }
+  });
 })();
 </script>
 </body>
