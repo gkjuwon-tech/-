@@ -1,7 +1,0 @@
-.vscode/**
-src/**
-node_modules/**
-tsconfig.json
-**/*.map
-**/*.ts
-꼬질룡_기획서.md

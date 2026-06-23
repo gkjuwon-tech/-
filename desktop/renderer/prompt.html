@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>꼬질룡</title>
+  <style>
+    body { font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+      margin: 0; padding: 16px; background: #fafafa; color: #141414; }
+    h3 { margin: 0 0 10px; font-size: 14px; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; font-size: 13px;
+      border: 1.5px solid #141414; border-radius: 8px; }
+    .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+    button { padding: 6px 14px; font-size: 13px; border: 1.5px solid #141414;
+      border-radius: 8px; background: #fff; cursor: pointer; }
+    button.go { background: #141414; color: #fff; }
+  </style>
+</head>
+<body>
+  <h3 id="title">입력</h3>
+  <input id="val" type="password" autofocus placeholder="여기에 붙여넣기" />
+  <div class="row">
+    <button id="cancel">취소</button>
+    <button id="ok" class="go">확인</button>
+  </div>
+  <script src="prompt.js"></script>
+</body>
+</html>
