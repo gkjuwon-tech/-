@@ -94,7 +94,8 @@ export class Config implements GeminiSettings {
   }
 
   get textModel(): string {
-    return this.data.textModel || "gemini-2.0-flash";
+    // 자동 최신 플래시 → 특정 모델이 퇴역해도 안 죽는다.
+    return this.data.textModel || "gemini-flash-latest";
   }
   get embeddingModel(): string {
     return this.data.embeddingModel || "gemini-embedding-001";

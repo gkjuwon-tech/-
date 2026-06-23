@@ -161,12 +161,9 @@ app.whenReady().then(async () => {
         }
         busy = true;
         try {
+          // 침묵 곡선(§17.1)은 evaluator가 단계별 프롬프트로 처리한다.
+          // 많이 배울수록 모델 스스로 말을 줄이고, 빈 줄(침묵)을 낸다.
           const ev = await evaluator.evaluate(e.code, e.languageId);
-          // 침묵 곡선(§17.1): 많이 배울수록 점점 말이 없어진다. 같은 상황도
-          // 예전엔 호들갑, 이제는 그냥 조용히 포즈만. 끝엔 거의 말이 없다.
-          if (Math.random() < silenceChance(memory.size)) {
-            ev.line = "";
-          }
           heart.applyEvaluation(ev);
           eggs.onCode(e.code); // 이스터에그 감지
           day.learned.push(...ev.newConcepts);
@@ -240,7 +237,6 @@ app.whenReady().then(async () => {
       { type: "separator" },
       { label: "Gemini API 키 입력…", click: () => void askKey() },
       { label: "포즈 다시 그리기 (개발용)", click: () => void generatePoses() },
-      { label: "엔딩 체험 (개발용)", click: () => ending.forceDisappear() },
       {
         label: "설정 폴더 열기",
         click: () => shell.showItemInFolder(config.settingsFile),
@@ -435,11 +431,3 @@ function growthStage(size: number): string {
   return "용이 된 꼬질룡";
 }
 
-/** 아는 개념이 많아질수록 말풍선을 띄울 확률이 줄어든다(=말수 감소). */
-function silenceChance(size: number): number {
-  if (size < 50) return 0; // 초반: 호들갑, 늘 말한다.
-  if (size < 150) return 0.15;
-  if (size < 300) return 0.35;
-  if (size < 600) return 0.6;
-  return 0.85; // 후반: 거의 조용히. "넌 알 거야."
-}

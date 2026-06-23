@@ -87,13 +87,6 @@ export class EndingDirector {
     }
   }
 
-  /** 데모에서 즉시 사라지게 하는 개발용 진입점. */
-  forceDisappear(): void {
-    if (this.state.phase === "normal") {
-      void this.disappear();
-    }
-  }
-
   isGone(): boolean {
     return this.state.phase === "gone";
   }
