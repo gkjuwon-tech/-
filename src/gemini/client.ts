@@ -92,15 +92,31 @@ export class GeminiClient {
     const url = `${GeminiClient.BASE}/models/${model}:${method}?key=${encodeURIComponent(
       key
     )}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Gemini ${res.status}: ${detail.slice(0, 300)}`);
+
+    // 일시적 과부하(503)/레이트리밋(429)은 백오프 후 재시도. 그 외는 즉시 실패.
+    let lastDetail = "";
+    let lastStatus = 0;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        return res.json();
+      }
+      lastStatus = res.status;
+      lastDetail = (await res.text().catch(() => "")).slice(0, 300);
+      if (res.status === 503 || res.status === 429) {
+        await delay(1000 * Math.pow(2, attempt)); // 1s, 2s, 4s
+        continue;
+      }
+      break;
     }
-    return res.json();
+    throw new Error(`Gemini ${lastStatus}: ${lastDetail}`);
   }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

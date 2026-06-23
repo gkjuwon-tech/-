@@ -72,13 +72,13 @@
         },
         "kkojilryong.embeddingModel": {
           "type": "string",
-          "default": "text-embedding-004",
+          "default": "gemini-embedding-001",
           "description": "RAG 임베딩에 쓰는 Gemini 임베딩 모델."
         },
         "kkojilryong.imageModel": {
           "type": "string",
-          "default": "gemini-2.0-flash-preview-image-generation",
-          "description": "그때그때 감정 포즈를 생성하는 Gemini 멀티모달 모델. 빈 값이면 미리 만든 SVG만 사용."
+          "default": "gemini-2.5-flash-image",
+          "description": "포즈 이미지를 생성하는 Gemini 멀티모달 모델 (이미지 생성은 유료 티어 필요). 빈 값이면 미리 만든 SVG만 사용."
         },
         "kkojilryong.diaryFolder": {
           "type": "string",

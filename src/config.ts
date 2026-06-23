@@ -45,12 +45,12 @@ export class Config {
   }
 
   get embeddingModel(): string {
-    return this.cfg.get<string>("embeddingModel", "text-embedding-004");
+    return this.cfg.get<string>("embeddingModel", "gemini-embedding-001");
   }
 
   /** 빈 문자열이면 이미지 생성을 끄고 미리 만든 SVG만 쓴다. */
   get imageModel(): string {
-    return this.cfg.get<string>("imageModel", "");
+    return this.cfg.get<string>("imageModel", "gemini-2.5-flash-image");
   }
 
   get diaryFolder(): string {
