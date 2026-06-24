@@ -54,6 +54,28 @@ cd desktop && npm install && npm start
 
 조작: **클릭=쓰다듬기 · 드래그=이동 · 우클릭=메뉴**.
 
+### 설치 파일(.exe / .dmg / .AppImage) 만들기
+
+`electron-builder`로 패키징한다. 산출물은 `desktop/release/`.
+
+```bash
+cd desktop && npm install
+npm run dist:win     # Windows: 설치본(NSIS) + 포터블 exe
+npm run dist:mac     # macOS: dmg
+npm run dist:linux   # Linux: AppImage
+npm run pack         # 설치파일 없이 폴더로만 (빠른 확인용)
+```
+
+> Windows `.exe`는 **Windows에서 빌드**하는 게 가장 확실하다. 리눅스/맥에서 윈도우
+> 설치본을 만들려면 `wine`이 필요하다(없으면 exe 본체는 나오지만 아이콘/메타데이터
+> 새김 단계에서 멈춘다).
+
+**Windows 머신이 없으면 → GitHub Actions로 받는다.** `.github/workflows/build-desktop.yml`이
+`windows-latest`에서 네이티브로 빌드한다:
+
+- **Actions 탭 → `build-desktop` → Run workflow** → 끝나면 `kkojilryong-windows-exe` 아티팩트(설치본 + 포터블 exe) 다운로드.
+- 또는 `v0.2.0` 같은 **`v*` 태그를 푸시**하면 빌드 후 그 릴리스에 `.exe`가 자동 첨부된다.
+
 ## vscode/ — 눈 (커넥터)
 
 ```bash
