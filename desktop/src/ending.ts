@@ -103,6 +103,15 @@ export class EndingDirector {
     await this.persist();
   }
 
+  /** 인앱 패널 표시용 통계. */
+  stats(): { activeDays: number; diaryCount: number; onboarded: boolean } {
+    return {
+      activeDays: this.state.activeDays,
+      diaryCount: this.state.diaryCount,
+      onboarded: this.state.onboarded,
+    };
+  }
+
   isGone(): boolean {
     return this.state.phase === "gone";
   }

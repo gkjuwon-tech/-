@@ -26,7 +26,7 @@ import { EndingDirector } from "./ending";
 import { ConversationStore } from "./core/conversation";
 import { FIRST_DAY_TXT, ONBOARDING } from "./core/endingTexts";
 import { SYSTEM_PERSONA } from "./core/persona";
-import { precisionDirective, growthStage } from "./core/maturity";
+import { precisionDirective, growthStage, maturityPct } from "./core/maturity";
 import { DayLog, Emotion, SensorEvent } from "./core/types";
 
 const PRELOAD = path.join(__dirname, "preload.js");
@@ -34,6 +34,7 @@ const RENDERER = path.join(__dirname, "..", "renderer");
 const BUNDLED_POSES = path.join(__dirname, "..", "assets", "poses");
 
 let win: BrowserWindow | undefined;
+let panel: BrowserWindow | undefined;
 let tray: Tray | undefined;
 let diarySaved = false;
 let quitting = false;
@@ -243,6 +244,10 @@ app.whenReady().then(async () => {
   // 첫 설치면 print부터 가르쳐 받는다 (수미상관의 시작).
   let onboarding = ending.needsOnboarding();
 
+  if (process.env.KKOJI_OPEN_PANEL === "1") {
+    setTimeout(() => openPanel(), 900); // 개발용: 패널 바로 띄우기
+  }
+
   // 시간/방치 맥락 틱.
   const tickTimer = setInterval(() => heart.tick(), 60_000);
 
@@ -415,6 +420,7 @@ app.whenReady().then(async () => {
   /** 위젯 우클릭 메뉴 / 트레이 메뉴가 공유하는 항목들. */
   function buildMenuItems(): Electron.MenuItemConstructorOptions[] {
     return [
+      { label: "꼬질룡 정보 (성장·일기·설정)", click: () => openPanel() },
       { label: "쓰다듬기", click: () => ipcMain.emit("pet") },
       { type: "separator" },
       {
@@ -493,6 +499,87 @@ app.whenReady().then(async () => {
     tray.on("click", () => toggleWidget());
     refreshTray();
   }
+
+  // ── 인앱 패널 (성장/일기/설정) ───────────────────────────
+  async function gatherPanelData(): Promise<Record<string, unknown>> {
+    const s = ending.stats();
+    const frames = await poses.frameDataUrls("calm").catch(() => []);
+    return {
+      dino: frames[0] || "",
+      stage: growthStage(memory.size),
+      pct: maturityPct(memory.size),
+      concepts: memory.size,
+      days: Math.max(1, s.activeDays),
+      diaryCount: s.diaryCount,
+      diaries: await diary.list(30),
+      hasKey: await config.hasApiKey(),
+      autostart: app.getLoginItemSettings().openAtLogin,
+    };
+  }
+
+  async function refreshPanel(): Promise<void> {
+    if (panel && !panel.isDestroyed()) {
+      panel.webContents.send("panel:data", await gatherPanelData());
+    }
+  }
+
+  function openPanel(): void {
+    if (panel && !panel.isDestroyed()) {
+      panel.show();
+      panel.focus();
+      void refreshPanel();
+      return;
+    }
+    const { workArea } = screen.getPrimaryDisplay();
+    const W = 380;
+    const H = 580;
+    panel = new BrowserWindow({
+      width: W,
+      height: H,
+      x: workArea.x + workArea.width - W - 24,
+      y: Math.max(workArea.y + 24, workArea.y + workArea.height - H - 24),
+      frame: false,
+      resizable: false,
+      transparent: false,
+      backgroundColor: "#fffdf3",
+      title: "꼬질룡",
+      webPreferences: {
+        preload: PRELOAD,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    panel.setMenuBarVisibility(false);
+    panel.loadFile(path.join(RENDERER, "panel.html"));
+    panel.webContents.once("did-finish-load", () => void refreshPanel());
+    panel.on("closed", () => (panel = undefined));
+  }
+
+  ipcMain.on("panel:action", async (_e, msg: { type: string; value?: unknown }) => {
+    switch (msg?.type) {
+      case "refresh":
+        await refreshPanel();
+        return;
+      case "close":
+        panel?.hide();
+        return;
+      case "openFolder":
+        void shell.openPath(diary.folderPath);
+        return;
+      case "openDiary":
+        void shell.openPath(path.join(diary.folderPath, String(msg.value)));
+        return;
+      case "setKey":
+        await askKey();
+        await refreshPanel();
+        return;
+      case "autostart":
+        app.setLoginItemSettings({ openAtLogin: !!msg.value });
+        refreshTray();
+        await refreshPanel();
+        return;
+    }
+  });
 
   async function askKey(): Promise<void> {
     const value = await promptString("Gemini API 키 (BYOK)");

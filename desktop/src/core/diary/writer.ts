@@ -69,6 +69,24 @@ export class DiaryWriter {
     return `${body.trim()}\n`;
   }
 
+  /** 최근 일기 파일명 목록 (최신순). 인앱 패널 표시용. */
+  async list(limit = 30): Promise<string[]> {
+    try {
+      const files = await fs.readdir(this.folder);
+      return files
+        .filter((f) => f.endsWith(".txt"))
+        .sort()
+        .reverse()
+        .slice(0, limit);
+    } catch {
+      return [];
+    }
+  }
+
+  get folderPath(): string {
+    return this.folder;
+  }
+
   async todayPath(): Promise<string | undefined> {
     const file = path.join(this.folder, `${today()}.txt`);
     try {

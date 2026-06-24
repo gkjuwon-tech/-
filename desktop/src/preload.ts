@@ -24,4 +24,10 @@ contextBridge.exposeInMainWorld("kkoji", {
     ipcRenderer.on("prompt:init", (_e, data) => cb(data)),
   promptSubmit: (value: string | null) =>
     ipcRenderer.send("prompt:submit", value),
+
+  // 인앱 패널(정보/일기/설정)
+  onPanelData: (cb: (data: unknown) => void) =>
+    ipcRenderer.on("panel:data", (_e, data) => cb(data)),
+  panel: (type: string, value?: unknown) =>
+    ipcRenderer.send("panel:action", { type, value }),
 });
