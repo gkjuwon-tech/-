@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self';" />
+<title>꼬질룡</title>
+<style>
+  :root { --ink:#161616; --paper:#fffdf3; --note:#fff7c7; --note2:#d8f3ff; --note3:#ffe0e6; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; }
+  body {
+    font-family:"Nanum Pen Script","Gaegu",system-ui,sans-serif; color:var(--ink);
+    background:var(--paper); background-image: radial-gradient(rgba(0,0,0,0.045) 1px, transparent 1px);
+    background-size: 18px 18px; padding: 0 16px 16px; overflow-y:auto; user-select:none;
+  }
+  .top { position:sticky; top:0; background:var(--paper); display:flex; align-items:center; gap:10px;
+    padding:14px 2px 10px; -webkit-app-region: drag; }
+  .top img { width:46px; height:46px; }
+  .top .name { font-family:"Nanum Pen Script"; font-size:30px; line-height:1; }
+  .top .stage { font-family:"Gaegu"; font-size:14px; opacity:.7; }
+  .x { margin-left:auto; -webkit-app-region:no-drag; cursor:pointer; font-size:22px; border:2px solid var(--ink);
+    border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; background:#fff; }
+  .x:hover { background:var(--note3); }
+
+  .card { border:2.4px solid var(--ink); background:#fff;
+    border-radius: 200px 16px 200px 16px / 16px 200px 16px 200px; box-shadow:2px 3px 0 rgba(0,0,0,.14);
+    padding:14px 16px; margin:12px 0; }
+  .card.b2 { border-radius: 16px 200px 16px 200px / 200px 16px 200px 16px; }
+  .card h3 { font-family:"Nanum Pen Script"; font-size:24px; margin:0 0 8px; }
+  .gridv { display:flex; gap:10px; flex-wrap:wrap; }
+  .stat { flex:1; min-width:70px; text-align:center; }
+  .stat .n { font-family:"Nanum Pen Script"; font-size:30px; line-height:1; }
+  .stat .l { font-size:13px; opacity:.65; }
+  .bar { height:12px; border:2px solid var(--ink); border-radius:8px; background:#fff; overflow:hidden; margin:4px 0 10px; }
+  .bar i { display:block; height:100%; background:var(--note); border-right:2px solid var(--ink); }
+
+  ul { list-style:none; margin:0; padding:0; max-height:200px; overflow-y:auto; }
+  li { font-family:"Gaegu"; font-size:15px; padding:6px 8px; border-radius:8px; cursor:pointer; display:flex; justify-content:space-between; }
+  li:hover { background:var(--note2); }
+  li .d { opacity:.5; font-size:13px; }
+  .empty { font-family:"Gaegu"; opacity:.55; font-size:14px; padding:6px 2px; }
+
+  .rowline { display:flex; align-items:center; justify-content:space-between; margin:8px 0; font-family:"Gaegu"; font-size:15px; }
+  button.go, .btn {
+    font-family:"Nanum Pen Script"; font-size:19px; padding:3px 14px; cursor:pointer;
+    border:2.2px solid var(--ink); background:var(--paper); color:var(--ink);
+    border-radius:160px 12px 150px 14px / 14px 150px 12px 160px; box-shadow:1px 2px 0 rgba(0,0,0,.18);
+  }
+  button.go:active, .btn:active { transform:translateY(1px); box-shadow:0 1px 0 rgba(0,0,0,.18); }
+  .toggle { width:46px; height:26px; border:2.2px solid var(--ink); border-radius:14px; background:#fff; position:relative; cursor:pointer; }
+  .toggle i { position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--ink); transition:left .12s steps(2); }
+  .toggle.on { background:var(--note); }
+  .toggle.on i { left:22px; }
+  .ok { color:#2a8a2a; } .need { opacity:.6; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <img id="dino" alt="" />
+    <div>
+      <div class="name">꼬질룡</div>
+      <div class="stage" id="stage">알</div>
+    </div>
+    <div class="x" id="close" title="닫기">×</div>
+  </div>
+
+  <div class="card">
+    <h3>성장</h3>
+    <div class="bar"><i id="bar" style="width:0%"></i></div>
+    <div class="gridv">
+      <div class="stat"><div class="n" id="pct">0%</div><div class="l">성숙도</div></div>
+      <div class="stat"><div class="n" id="concepts">0</div><div class="l">아는 개념</div></div>
+      <div class="stat"><div class="n" id="days">0</div><div class="l">함께한 날</div></div>
+      <div class="stat"><div class="n" id="diaryn">0</div><div class="l">일기</div></div>
+    </div>
+  </div>
+
+  <div class="card b2">
+    <h3>일기</h3>
+    <ul id="diaries"><li class="empty">아직 일기가 없어.</li></ul>
+    <div class="rowline"><span>일기 폴더</span><button class="btn" id="openFolder">열기</button></div>
+  </div>
+
+  <div class="card">
+    <h3>설정</h3>
+    <div class="rowline"><span>Gemini API 키 <span id="keyStatus" class="need">(필요)</span></span><button class="btn" id="setKey">입력</button></div>
+    <div class="rowline"><span>시작할 때 자동 실행</span><div class="toggle" id="autostart"><i></i></div></div>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import * as path from "path";
 import { GeminiClient } from "../gemini/client";
 import { MemoryStore } from "../rag/memory";
 import { SYSTEM_PERSONA, buildMemoryBlock } from "../persona";
+import { diaryMaturity } from "../maturity";
 import { DayLog } from "../types";
 
 /**
@@ -15,6 +16,22 @@ export class DiaryWriter {
     private readonly memory: MemoryStore,
     private readonly folder: string
   ) {}
+
+  /**
+   * AI 없이 고정 내용으로 일기를 남긴다. 1일차(수미상관)용.
+   * @returns 작성된 파일 경로.
+   */
+  async writeRaw(content: string, date = today()): Promise<string> {
+    await fs.mkdir(this.folder, { recursive: true });
+    const file = path.join(this.folder, `${date}.txt`);
+    await fs.writeFile(file, content, "utf8");
+    return file;
+  }
+
+  /** 오늘 일기가 이미 있으면 true (덮어쓰기 방지용). */
+  async hasToday(): Promise<boolean> {
+    return !!(await this.todayPath());
+  }
 
   /** @returns 작성된 일기 파일의 절대 경로. */
   async write(day: DayLog): Promise<string> {
@@ -32,12 +49,7 @@ export class DiaryWriter {
 
   private async compose(day: DayLog, novel: string[]): Promise<string> {
     const memoryBlock = buildMemoryBlock(this.memory.knownConcepts());
-    const maturity =
-      this.memory.size < 50
-        ? "아직 멍청하고 모르는 게 많다. 짧고 순수하게, 가끔 맞춤법도 틀리게."
-        : this.memory.size < 300
-        ? "조금 자랐다. 패턴이 보이기 시작한다."
-        : "많이 자랐다. 가끔 또박또박, 회고가 깊어진다.";
+    const maturity = diaryMaturity(this.memory.size);
 
     const prompt = `${memoryBlock}
 
@@ -57,9 +69,26 @@ export class DiaryWriter {
     return `${body.trim()}\n`;
   }
 
+  /** 최근 일기 파일명 목록 (최신순). 인앱 패널 표시용. */
+  async list(limit = 30): Promise<string[]> {
+    try {
+      const files = await fs.readdir(this.folder);
+      return files
+        .filter((f) => f.endsWith(".txt"))
+        .sort()
+        .reverse()
+        .slice(0, limit);
+    } catch {
+      return [];
+    }
+  }
+
+  get folderPath(): string {
+    return this.folder;
+  }
+
   async todayPath(): Promise<string | undefined> {
-    const date = new Date().toISOString().slice(0, 10);
-    const file = path.join(this.folder, `${date}.txt`);
+    const file = path.join(this.folder, `${today()}.txt`);
     try {
       await fs.access(file);
       return file;
@@ -67,4 +96,8 @@ export class DiaryWriter {
       return undefined;
     }
   }
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
 }
