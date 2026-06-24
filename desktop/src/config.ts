@@ -121,6 +121,10 @@ export class Config implements GeminiSettings {
   get conversationFile(): string {
     return path.join(app.getPath("userData"), "conversation.json");
   }
+  /** 에피소딕 성장 기억(하루치 서사 임베딩) 저장 파일. */
+  get episodicFile(): string {
+    return path.join(app.getPath("userData"), "episodic.json");
+  }
   /** §17.5 진엔딩에서 꼬질룡이 만드는 첫 프로그램이 들어갈 폴더. */
   get projectFolder(): string {
     return path.join(os.homedir(), "my_first_program");
