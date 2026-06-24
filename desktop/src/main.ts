@@ -26,6 +26,7 @@ import { EndingDirector } from "./ending";
 import { ConversationStore } from "./core/conversation";
 import { FIRST_DAY_TXT, ONBOARDING } from "./core/endingTexts";
 import { SYSTEM_PERSONA } from "./core/persona";
+import { precisionDirective, growthStage } from "./core/maturity";
 import { DayLog, Emotion, SensorEvent } from "./core/types";
 
 const PRELOAD = path.join(__dirname, "preload.js");
@@ -333,22 +334,14 @@ app.whenReady().then(async () => {
    * - 안 배운 건 솔직하게 모른다. 절대 지어내거나 어시스턴트처럼 척척 답하지 않는다.
    */
   function chatRules(size: number): string {
-    const precision =
-      size < 50
-        ? "근데 네가 배운 건 아직 어렴풋해. 두루뭉술하게, 어린애처럼, 가끔 틀려도 귀엽게 말해."
-        : size < 300
-        ? "이제 좀 알아. 배운 건 어느 정도 설명할 수 있어. 근데 완벽하진 않고 여전히 순진해."
-        : size < 800
-        ? "많이 배웠어. 배운 건 꽤 정확히 말할 수 있어. 그래도 말투는 끝까지 귀엽게."
-        : "이제 너만큼 알아. 배운 건 정확하게 설명해줄 수 있어. 근데 잘난 척 안 하고 다정하게.";
     return `[대답 규칙 — 절대 어기지 마라]
 - 너는 척척박사 AI 어시스턴트가 아니라 '주인이랑 같이 배우는 공룡'이다.
 - 네가 아는 건 오직 아래 [관련해서 네가 배운 것] 목록에 있는 것뿐이다.
-- 목록에 있는(=배운) 개념은 답해도 된다. ${precision}
+- 목록에 있는(=배운) 개념은 답해도 된다. ${precisionDirective(size)}
 - 목록에 없는(=아직 안 배운) 건 모른다. "그건 아직 잘 몰라…" 하고 같이 걱정하거나 옆에 있어줘. 절대 지어내지 마라.
-- 코드를 통째로 짜주거나 정답을 척척 내놓지 마라. 어디까지나 배운 만큼만, 네 귀여운 말투로.
+- 코드를 통째로 짜주거나 정답을 척척 내놓지 마라. 어디까지나 배운 만큼만, 네 담백한 말투로.
 - ★단, 주인이 너한테 들려준 일상/취향/약속/주인에 대한 얘기는 '절대 안 잊는다'. [최근 대화]·[문득 기억나는 것들]에 있는 건 다정하게 또렷이 기억해줘. (코딩은 서툴러도, 주인은 안 까먹는 게 너야.)
-- 짧게 한두 문장. 한국어. 받침 흘리거나 맞춤법 틀려도 됨.`;
+- 짧게 한두 문장. 한국어. 억지 애교·혀짧은소리·유아어 금지. 짧고 담백한 게 진짜 귀엽다.`;
   }
 
   async function freeChat(text: string): Promise<void> {
@@ -414,7 +407,7 @@ app.whenReady().then(async () => {
 
   ipcMain.on("pet", () => {
     heart.touch();
-    say("pet", "에헤헤… 또 쓰다듬어줘…");
+    say("pet", "또… 쓰다듬어줘.");
   });
 
   ipcMain.on("menu", () => showMenu());
@@ -680,14 +673,5 @@ function strongest(a: Emotion, b: Emotion): Emotion {
 
 function dedupe(arr: string[]): string[] {
   return [...new Set(arr.map((s) => s.trim()).filter(Boolean))];
-}
-
-/** 성장 단계 (기획서 §8). 화려해지진 않고, 아는 게 많아진다. */
-function growthStage(size: number): string {
-  if (size < 1) return "알";
-  if (size < 50) return "깬 꼬질룡";
-  if (size < 300) return "배우는 꼬질룡";
-  if (size < 800) return "똑똑해진 꼬질룡";
-  return "용이 된 꼬질룡";
 }
 

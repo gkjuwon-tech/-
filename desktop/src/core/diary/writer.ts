@@ -3,6 +3,7 @@ import * as path from "path";
 import { GeminiClient } from "../gemini/client";
 import { MemoryStore } from "../rag/memory";
 import { SYSTEM_PERSONA, buildMemoryBlock } from "../persona";
+import { diaryMaturity } from "../maturity";
 import { DayLog } from "../types";
 
 /**
@@ -48,12 +49,7 @@ export class DiaryWriter {
 
   private async compose(day: DayLog, novel: string[]): Promise<string> {
     const memoryBlock = buildMemoryBlock(this.memory.knownConcepts());
-    const maturity =
-      this.memory.size < 50
-        ? "아직 멍청하고 모르는 게 많다. 짧고 순수하게, 가끔 맞춤법도 틀리게."
-        : this.memory.size < 300
-        ? "조금 자랐다. 패턴이 보이기 시작한다."
-        : "많이 자랐다. 가끔 또박또박, 회고가 깊어진다.";
+    const maturity = diaryMaturity(this.memory.size);
 
     const prompt = `${memoryBlock}
 
