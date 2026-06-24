@@ -65,3 +65,23 @@ html, body {
   -webkit-app-region: no-drag;
 }
 .goneicon:hover { color: rgba(20, 20, 20, 0.8); }
+
+/* 말 거는 입력창 — 손그림 톤. 평소엔 숨김, 온보딩/엔딩/대화 때만 보임 */
+.talk {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  padding: 6px 10px;
+  font-family: "Nanum Pen Script", "Gaegu", sans-serif;
+  font-size: 17px;
+  color: #141414;
+  background: #fffdf3;
+  border: 2.2px solid #141414;
+  border-radius: 160px 14px 160px 14px / 14px 160px 14px 160px;
+  box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.18);
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+.talk::placeholder { color: rgba(20, 20, 20, 0.4); }
+.talk.hidden { display: none; }

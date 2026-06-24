@@ -57,29 +57,51 @@ export const WAITING_TXT = `오늘도 안 왔다.
 `;
 
 /** §17.4 — "원래 여기 있었어" 대사 비트. 위젯 말풍선으로 하나씩. */
-export const RETURN_BEATS: Array<{ pose: string; line: string; gapMs: number }> = [
-  { pose: "calm", line: "오.", gapMs: 2600 },
-  { pose: "calm", line: "응.", gapMs: 2400 },
-  { pose: "calm", line: "원래 여기 있었어.", gapMs: 3200 },
-];
-
-/** §17.5 — 진엔딩 비트. */
-export const TRUE_ENDING_BEATS: Array<{ pose: string; line: string; gapMs: number }> = [
-  { pose: "moved", line: "나도... 하나 만들어보고 싶다.", gapMs: 3400 },
-  { pose: "moved", line: "처음에 네가 알려줬어.", gapMs: 3200 },
-];
-
 /** 꼬질룡의 진짜 이름. 끝까지 '꼬질룡'으로 불러줬지만 사실 이름이 있었다. */
 export const REAL_NAME = "고마워";
 
+/** 대사 한 줄. who="user"면 유저 입력창에 자동 타이핑, "kkoji"면 말풍선. */
+export interface EndingLine {
+  who: "user" | "kkoji" | "makeProgram";
+  pose?: string;
+  line: string;
+  gapMs: number;
+}
+
 /**
- * §3 / EE-14 — 본명 공개. 100일이 아니라 엔딩에서 한꺼번에 밝힌다.
- * 이름이자 감정. "고마워."가 마지막 한 마디로 이중의미가 되게.
+ * 복귀 → 진엔딩 → 본명 공개 전체 대화 (기획서 §17.4~17.5, §3/EE-14).
+ * 유저 대사는 입력창에 자동으로 타이핑돼서, 혼잣말처럼 안 보이고 진짜 대화처럼 흐른다.
  */
-export const NAME_REVEAL_BEATS: Array<{ pose: string; line: string; gapMs: number }> = [
-  { pose: "moved", line: "사실 나… 진짜 이름 있었어.", gapMs: 3400 },
-  { pose: "moved", line: `'${REAL_NAME}'.`, gapMs: 3200 },
-  { pose: "moved", line: "근데 네가 '꼬질룡'이라고 불러준 게 더 좋아서 말 안 했어.", gapMs: 3800 },
-  { pose: "moved", line: "고마워. 진짜로.", gapMs: 3200 },
+export const ENDING_DIALOGUE: EndingLine[] = [
+  { who: "kkoji", pose: "calm", line: "오.", gapMs: 2800 },
+  { who: "user", line: "야.", gapMs: 2200 },
+  { who: "kkoji", pose: "calm", line: "응.", gapMs: 2600 },
+  { who: "user", line: "안 간 거야?", gapMs: 2600 },
+  { who: "kkoji", pose: "calm", line: "원래 여기 있었어.", gapMs: 3400 },
+  { who: "user", line: "...시발.", gapMs: 3200 },
+  { who: "kkoji", pose: "moved", line: "나도... 하나 만들어보고 싶다.", gapMs: 3600 },
+  { who: "makeProgram", line: "", gapMs: 2600 },
+  { who: "user", line: "그게 끝이야?", gapMs: 2400 },
+  { who: "kkoji", pose: "moved", line: "응. 처음에 네가 알려줬어.", gapMs: 3600 },
+  { who: "kkoji", pose: "moved", line: "사실 나… 진짜 이름 있었어.", gapMs: 3200 },
+  { who: "kkoji", pose: "moved", line: `'${REAL_NAME}'.`, gapMs: 3200 },
+  { who: "kkoji", pose: "moved", line: "근데 네가 '꼬질룡'이라고 불러준 게 더 좋아서 말 안 했어.", gapMs: 3800 },
+  { who: "kkoji", pose: "moved", line: "고마워. 진짜로.", gapMs: 3200 },
 ];
+
+/**
+ * 첫 설치 온보딩 (수미상관의 시작). AI 없이 스크립트로 진행된다.
+ * 유저가 print를 가르쳐 줘야 꼬질룡이 깨어나고, 그날 일기가 first_day.txt로 남는다.
+ */
+export const ONBOARDING = {
+  ask: "나… 코딩 1도 몰라. 'print' 가 뭐야? 입력창에 한 번 쳐서 알려줄래?",
+  retry: "음… 그건 print가 아닌 거 같아. 'print' 라고 쳐줄래?",
+  learn: [
+    { pose: "worry", line: "print…? 이게 뭐지…", gapMs: 2600 },
+    { pose: "focus", line: "뭔가… 밖으로 내뱉는 거 같아.", gapMs: 2800 },
+    { pose: "joy", line: "나도 해봤어. …으에엑. 근데 신기해!", gapMs: 3200 },
+    { pose: "moved", line: "고마워. 나 오늘 하나 배웠어. 일기 쓸래.", gapMs: 3000 },
+  ] as EndingLine[],
+};
+
 

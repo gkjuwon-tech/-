@@ -3,6 +3,9 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
+  Tray,
+  Notification,
+  nativeImage,
   screen,
   shell,
   dialog,
@@ -20,13 +23,31 @@ import { Presence } from "./presence";
 import { EventServer } from "./server";
 import { EasterEggs } from "./easterEggs";
 import { EndingDirector } from "./ending";
+import { FIRST_DAY_TXT, ONBOARDING } from "./core/endingTexts";
+import { SYSTEM_PERSONA, buildMemoryBlock } from "./core/persona";
 import { DayLog, Emotion, SensorEvent } from "./core/types";
 
 const PRELOAD = path.join(__dirname, "preload.js");
 const RENDERER = path.join(__dirname, "..", "renderer");
+const BUNDLED_POSES = path.join(__dirname, "..", "assets", "poses");
 
 let win: BrowserWindow | undefined;
+let tray: Tray | undefined;
 let diarySaved = false;
+let quitting = false;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// 백그라운드 상주 앱(올라마처럼): 한 번에 하나만 뜨고, 또 켜면 기존 위젯을 보여준다.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (win) {
+      win.show();
+    }
+  });
+}
 
 // ── 하루 누적 (일기 재료) ────────────────────────────────
 let day: DayLog = freshDay();
@@ -105,11 +126,32 @@ app.whenReady().then(async () => {
     void viewForPose(pose, line).then(send);
   }
 
+  /** 유저 입력창에 한 줄을 자동 타이핑 (엔딩 대화처럼 보이게). */
+  function autotype(text: string): void {
+    win?.webContents.send("autotype", { text });
+  }
+
+  /** OS 알림으로 앱 레벨에서 표시. 위젯을 안 보고 있어도 알 수 있게. */
+  function notify(title: string, body: string, openFile?: string): void {
+    try {
+      if (!Notification.isSupported()) {
+        return;
+      }
+      const n = new Notification({ title, body, silent: false });
+      if (openFile) {
+        n.on("click", () => void shell.openPath(openFile));
+      }
+      n.show();
+    } catch {
+      /* 알림 미지원 환경은 조용히 무시 */
+    }
+  }
+
   heart.onChange(() => void sendCurrent());
   const eggs = new EasterEggs(say);
   eggs.start();
 
-  // 엔딩 아크 (§17): 진짜 사라졌다 며칠 뒤 돌아오고, 진짜 파일을 남긴다.
+  // 꼬질룡의 인생 전체(온보딩~엔딩): 진짜 위젯 동작 + 진짜 파일 + 앱 레벨 알림.
   const ending = new EndingDirector(
     {
       stateFile: config.endingStateFile,
@@ -119,8 +161,10 @@ app.whenReady().then(async () => {
         goneFlag = gone;
         void sendCurrent();
       },
-      say: (pose, line) => say(pose as Emotion, line),
+      say: (pose, line) => say(pose, line),
+      autotype,
       openPath: (p) => void shell.openPath(p),
+      notify,
     },
     process.env.KKOJI_ENDING_DEMO === "1"
   );
@@ -141,8 +185,8 @@ app.whenReady().then(async () => {
       case "build":
         presence.beat();
         ending.onActivity();
-        if (ending.isGone()) {
-          return; // 사라진 동안엔 조용히.
+        if (ending.isGone() || onboarding) {
+          return; // 사라진 동안/온보딩 중엔 조용히.
         }
         if (e.ok) {
           heart.applyEvaluation({
@@ -158,8 +202,8 @@ app.whenReady().then(async () => {
       case "code":
         presence.beat();
         ending.onActivity();
-        if (ending.isGone() || busy) {
-          return; // 사라진 동안엔 조용히 / 한 번에 하나만.
+        if (ending.isGone() || onboarding || busy) {
+          return; // 사라진 동안/온보딩 중엔 조용히 / 한 번에 하나만.
         }
         busy = true;
         try {
@@ -189,7 +233,11 @@ app.whenReady().then(async () => {
   server.start();
   presence.start();
   createWindow();
+  createTray();
   await ending.init();
+
+  // 첫 설치면 print부터 가르쳐 받는다 (수미상관의 시작).
+  let onboarding = ending.needsOnboarding();
 
   // 시간/방치 맥락 틱.
   const tickTimer = setInterval(() => heart.tick(), 60_000);
@@ -202,7 +250,100 @@ app.whenReady().then(async () => {
       win.webContents.send("state", lastView);
     }
     void sendCurrent();
+    if (onboarding) {
+      void startOnboarding();
+    } else if (!hasKeyHinted) {
+      void maybeHintKey();
+    }
   });
+
+  /** 첫날: 유저가 print를 가르쳐 줘야 꼬질룡이 깨어난다. */
+  async function startOnboarding(): Promise<void> {
+    win?.webContents.send("mode", { input: true, placeholder: "print 라고 쳐봐" });
+    await sleep(600);
+    say("worry", ONBOARDING.ask);
+  }
+
+  let onboardingBusy = false;
+  /** 유저가 입력창에 친 말. 온보딩 중이면 print 가르치기, 아니면 자유 대화. */
+  async function onTalk(text: string): Promise<void> {
+    const t = (text || "").trim();
+    if (!t) {
+      return;
+    }
+    if (onboarding) {
+      if (onboardingBusy) {
+        return;
+      }
+      if (!/print/i.test(t)) {
+        say("worry", ONBOARDING.retry);
+        return;
+      }
+      onboardingBusy = true;
+      onboarding = false;
+      for (const b of ONBOARDING.learn) {
+        say(b.pose || "worry", b.line);
+        await sleep(b.gapMs);
+      }
+      // 1일차 일기 = first_day.txt 그대로 (AI 없이). 수미상관의 첫 매듭.
+      try {
+        const p = await diary.writeRaw(FIRST_DAY_TXT);
+        await diary.writeRaw(FIRST_DAY_TXT, "first_day"); // 영구 보관본도 같이
+        notify("꼬질룡", "첫 일기를 썼어요.", p);
+      } catch {
+        /* 조용히 */
+      }
+      await ending.incDiary();
+      await ending.markOnboarded();
+      // 이제부터 늘 같이 있는다 — 백그라운드 자동 실행 켠다(언제든 끌 수 있음).
+      try {
+        app.setLoginItemSettings({ openAtLogin: true });
+      } catch {
+        /* 플랫폼 미지원 무시 */
+      }
+      refreshTray();
+      win?.webContents.send("mode", { input: false });
+      await sleep(900);
+      say("moved", "이제 네가 코딩하는 거 보고 싶어. (우클릭 → Gemini 키)");
+      onboardingBusy = false;
+      return;
+    }
+    // 평소 자유 대화: 짧게 한 마디 받아준다.
+    await freeChat(t);
+  }
+  ipcMain.on("talk", (_e, text: string) => void onTalk(text));
+
+  /** 키가 없으면 부드럽게 한 번만 안내 (닦달 금지). */
+  let hasKeyHinted = false;
+  async function maybeHintKey(): Promise<void> {
+    hasKeyHinted = true;
+    if (!(await config.hasApiKey())) {
+      await sleep(700);
+      say("worry", "우클릭 메뉴에서 Gemini 키 넣어줘. 그래야 너 코딩하는 거 봐.");
+    }
+  }
+
+  /** 위젯 입력창으로 말 걸면 꼬질룡이 짧게 답한다 (키 있을 때). */
+  async function freeChat(text: string): Promise<void> {
+    if (goneFlag) {
+      return;
+    }
+    if (!(await config.hasApiKey())) {
+      say("worry", "우클릭 → Gemini 키 넣어줘. 그래야 너랑 얘기하지.");
+      return;
+    }
+    try {
+      const reply = await gemini.generateText(
+        SYSTEM_PERSONA,
+        `${buildMemoryBlock(memory.knownConcepts())}\n\n주인이 너한테 말했어: "${text}"\n짧게 한 마디로 대답해. (한 문장)`,
+        { temperature: 0.95 }
+      );
+      heart.touch();
+      say("calm", reply.replace(/\s+/g, " ").trim().slice(0, 80));
+    } catch {
+      /* 조용히 */
+    }
+  }
 
   ipcMain.on("pet", () => {
     heart.touch();
@@ -211,20 +352,23 @@ app.whenReady().then(async () => {
 
   ipcMain.on("menu", () => showMenu());
 
-  function showMenu(): void {
-    const menu = Menu.buildFromTemplate([
+  /** 위젯 우클릭 메뉴 / 트레이 메뉴가 공유하는 항목들. */
+  function buildMenuItems(): Electron.MenuItemConstructorOptions[] {
+    return [
       { label: "쓰다듬기", click: () => ipcMain.emit("pet") },
       { type: "separator" },
       {
         label: "오늘 일기 보기",
         click: async () => {
-          const p = (await diary.todayPath()) ?? (await writeDiary());
+          const p = (await diary.todayPath()) ?? (await writeDiary(false, true));
           if (p) {
             shell.openPath(p);
+          } else {
+            say("worry", "아직 일기 없어… 키 넣고 같이 코딩하면 써줄게.");
           }
         },
       },
-      { label: "지금 일기 쓰기", click: () => void writeDiary(true) },
+      { label: "일기 폴더 열기", click: () => void shell.openPath(config.diaryFolder) },
       {
         label: "꼬질룡이 아는 것…",
         click: () => {
@@ -238,16 +382,56 @@ app.whenReady().then(async () => {
       },
       { type: "separator" },
       { label: "Gemini API 키 입력…", click: () => void askKey() },
-      { label: "포즈 다시 그리기 (개발용)", click: () => void generatePoses() },
       {
-        label: "설정 폴더 열기",
-        click: () => shell.showItemInFolder(config.settingsFile),
+        label: "시작할 때 자동 실행",
+        type: "checkbox",
+        checked: app.getLoginItemSettings().openAtLogin,
+        click: (mi) => app.setLoginItemSettings({ openAtLogin: mi.checked }),
       },
+      { label: "포즈 다시 그리기 (개발용)", click: () => void generatePoses() },
       { type: "separator" },
       { label: "꼬질룡 끄기…", click: () => void turnOff() },
-      { label: "종료", click: () => app.quit() },
-    ]);
-    menu.popup({ window: win });
+      { label: "종료", click: () => quitApp() },
+    ];
+  }
+
+  function showMenu(): void {
+    Menu.buildFromTemplate(buildMenuItems()).popup({ window: win });
+  }
+
+  function toggleWidget(): void {
+    if (win?.isVisible()) {
+      win.hide();
+    } else {
+      win?.show();
+    }
+    refreshTray();
+  }
+
+  function refreshTray(): void {
+    if (!tray) {
+      return;
+    }
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: win?.isVisible() ? "잠깐 숨기기" : "보이기", click: toggleWidget },
+        ...buildMenuItems(),
+      ])
+    );
+  }
+
+  function createTray(): void {
+    let icon = nativeImage.createFromPath(
+      path.join(BUNDLED_POSES, "calm_0.png")
+    );
+    if (!icon.isEmpty()) {
+      icon = icon.resize({ width: 18, height: 18 });
+      icon.setTemplateImage(true);
+    }
+    tray = new Tray(icon);
+    tray.setToolTip("꼬질룡 — 오늘도 코딩하자");
+    tray.on("click", () => toggleWidget());
+    refreshTray();
   }
 
   async function askKey(): Promise<void> {
@@ -256,27 +440,29 @@ app.whenReady().then(async () => {
       return;
     }
     config.setApiKey(value);
-    win?.webContents.send("say", {
-      emotion: "joy",
-      line: "오! 이제 더 잘 할 수 있어!",
-    });
+    say("joy", "오! 이제 너 코딩하는 거 볼 수 있어!");
   }
 
-  async function writeDiary(announce = false): Promise<string | undefined> {
+  async function writeDiary(
+    announce = false,
+    force = false
+  ): Promise<string | undefined> {
     try {
+      if (!force && (await diary.hasToday())) {
+        return diary.todayPath(); // 오늘 일기가 이미 있음(1일차 등) — 안 덮어쓴다.
+      }
       const snapshot = { ...day, learned: dedupe(day.learned) };
       day = freshDay();
       const p = await diary.write(snapshot);
       await ending.incDiary();
       if (announce) {
-        win?.webContents.send("say", {
-          emotion: "moved",
-          line: "오늘 일기 다 썼어. 사각사각.",
-        });
+        say("moved", "오늘 일기 다 썼어. 사각사각.");
       }
       return p;
     } catch (err) {
-      dialog.showErrorBox("꼬질룡", `일기 실패: ${err}`);
+      if (!String(err).includes("NO_API_KEY")) {
+        dialog.showErrorBox("꼬질룡", `일기 실패: ${err}`);
+      }
       return undefined;
     }
   }
@@ -286,20 +472,19 @@ app.whenReady().then(async () => {
       dialog.showMessageBox({ message: "먼저 Gemini API 키부터 입력해줘." });
       return;
     }
-    win?.webContents.send("say", {
-      emotion: "focus",
-      line: "포즈 그리는 중… 조금만 기다려…",
-    });
+    say("focus", "포즈 그리는 중… 조금만 기다려…");
     try {
       await poses.generateAll();
       void sendCurrent(); // 새 PNG로 갱신.
-      win?.webContents.send("say", {
-        emotion: "moved",
-        line: "이게… 진짜 내 모습이야. 어때?",
-      });
+      say("moved", "이게… 진짜 내 모습이야. 어때?");
     } catch (err) {
       dialog.showErrorBox("꼬질룡", `포즈 생성 실패: ${err}`);
     }
+  }
+
+  function quitApp(): void {
+    quitting = true;
+    app.quit();
   }
 
   // §17.8 — 끄기. "삭제"가 아니라 "끄기", 되돌릴 수 있다. 작별 편지를 남긴다.
@@ -323,6 +508,7 @@ app.whenReady().then(async () => {
 
   // 종료 시 일기 저장.
   app.on("before-quit", (e) => {
+    quitting = true;
     if (diarySaved) {
       return;
     }
@@ -343,8 +529,8 @@ app.whenReady().then(async () => {
 
 function createWindow(): void {
   const { workArea } = screen.getPrimaryDisplay();
-  const w = 180;
-  const h = 200;
+  const w = 210;
+  const h = 250;
   win = new BrowserWindow({
     width: w,
     height: h,
@@ -364,6 +550,13 @@ function createWindow(): void {
   });
   win.setAlwaysOnTop(true, "screen-saver");
   win.loadFile(path.join(RENDERER, "index.html"));
+  // 닫아도 안 꺼진다 — 트레이로 숨을 뿐. (진짜 종료는 트레이 "종료"로만)
+  win.on("close", (e) => {
+    if (!quitting) {
+      e.preventDefault();
+      win?.hide();
+    }
+  });
   win.on("closed", () => (win = undefined));
 }
 
@@ -399,11 +592,9 @@ function promptString(title: string): Promise<string | undefined> {
   });
 }
 
+// 백그라운드 상주 앱: 창을 다 닫아도 트레이에 살아있는다. 종료는 트레이로만.
 app.on("window-all-closed", () => {
-  // 캐릭터 창이 닫히면 종료 (모달 프롬프트만 닫힌 경우는 win이 살아있음).
-  if (!win) {
-    app.quit();
-  }
+  /* 일부러 아무것도 안 한다 (상주). */
 });
 
 function strongest(a: Emotion, b: Emotion): Emotion {

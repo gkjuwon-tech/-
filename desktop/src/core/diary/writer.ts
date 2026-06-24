@@ -16,6 +16,22 @@ export class DiaryWriter {
     private readonly folder: string
   ) {}
 
+  /**
+   * AI 없이 고정 내용으로 일기를 남긴다. 1일차(수미상관)용.
+   * @returns 작성된 파일 경로.
+   */
+  async writeRaw(content: string, date = today()): Promise<string> {
+    await fs.mkdir(this.folder, { recursive: true });
+    const file = path.join(this.folder, `${date}.txt`);
+    await fs.writeFile(file, content, "utf8");
+    return file;
+  }
+
+  /** 오늘 일기가 이미 있으면 true (덮어쓰기 방지용). */
+  async hasToday(): Promise<boolean> {
+    return !!(await this.todayPath());
+  }
+
   /** @returns 작성된 일기 파일의 절대 경로. */
   async write(day: DayLog): Promise<string> {
     await fs.mkdir(this.folder, { recursive: true });
@@ -58,8 +74,7 @@ export class DiaryWriter {
   }
 
   async todayPath(): Promise<string | undefined> {
-    const date = new Date().toISOString().slice(0, 10);
-    const file = path.join(this.folder, `${date}.txt`);
+    const file = path.join(this.folder, `${today()}.txt`);
     try {
       await fs.access(file);
       return file;
@@ -67,4 +82,8 @@ export class DiaryWriter {
       return undefined;
     }
   }
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
 }

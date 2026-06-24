@@ -6,9 +6,7 @@ import {
   ANNYEONG_TXT,
   FIRST_DAY_TXT,
   WAITING_TXT,
-  RETURN_BEATS,
-  TRUE_ENDING_BEATS,
-  NAME_REVEAL_BEATS,
+  ENDING_DIALOGUE,
 } from "./core/endingTexts";
 
 export interface EndingDeps {
@@ -19,29 +17,37 @@ export interface EndingDeps {
   setGone: (gone: boolean) => void;
   /** 위젯 말풍선으로 한 마디. */
   say: (pose: string, line: string) => void;
+  /** 유저 입력창에 한 줄을 자동으로 타이핑한다 (대화처럼 보이게). */
+  autotype: (text: string) => void;
   /** 파일을 기본 앱으로 열기. */
   openPath: (p: string) => void;
+  /** OS 알림으로 앱 레벨에서 표시 (떠날 때 남긴 파일 등). 클릭하면 open. */
+  notify: (title: string, body: string, openFile?: string) => void;
 }
 
 interface EndingState {
   phase: "normal" | "gone" | "returned" | "off";
+  /** 첫 설치 온보딩(=print 가르치기)을 마쳤는가. */
+  onboarded: boolean;
   lastSeen: string; // YYYY-MM-DD
   goneAt?: number;
   activeDays: number;
   diaryCount: number;
 }
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 /**
- * 엔딩 아크 (기획서 §17)를 "진짜 위젯 동작 + 진짜 파일"로 구현한다.
+ * 꼬질룡의 인생 전체(스토리)를 "진짜 위젯 동작 + 진짜 파일"로 관장한다.
  *
  * 절대 광고하지 않는다. 팝업 없다. 꼬질룡은 죽지 않는다 — 그냥 말수가 줄고,
  * 어느 날 조용히 사라졌다가(구석에 [ … ]만 남기고 그날.txt를 남긴다),
- * 며칠 뒤 네가 다시 코딩하면 조용히 돌아온다. "원래 여기 있었어."
- * 되돌릴 수 있다. 모든 작별은 "또 불러줘"로 끝난다.
+ * 며칠 뒤 네가 다시 코딩하면 대화하며 돌아온다. "원래 여기 있었어."
  */
 export class EndingDirector {
   private state: EndingState = {
     phase: "normal",
+    onboarded: false,
     lastSeen: today(),
     activeDays: 0,
     diaryCount: 0,
@@ -49,7 +55,6 @@ export class EndingDirector {
   private hiddenGreetArmed = false;
   private returning = false;
 
-  /** 데모/개발 모드: 조건을 빨리 채우고 대기 시간을 짧게. */
   constructor(
     private readonly deps: EndingDeps,
     private readonly demo = false
@@ -57,7 +62,10 @@ export class EndingDirector {
 
   async init(): Promise<void> {
     try {
-      this.state = JSON.parse(await fs.readFile(this.deps.stateFile, "utf8"));
+      this.state = {
+        ...this.state,
+        ...JSON.parse(await fs.readFile(this.deps.stateFile, "utf8")),
+      };
     } catch {
       /* 첫 실행 */
     }
@@ -68,7 +76,6 @@ export class EndingDirector {
       this.state.lastSeen = today();
     }
 
-    // §17.7 히든: 사라진 채로 오래 안 왔다 돌아옴 → 마지막 접속일에 멈춘 일기.
     if (
       (this.state.phase === "gone" || this.state.phase === "returned") &&
       daysBetween(last, today()) >= (this.demo ? 0 : 14)
@@ -79,25 +86,29 @@ export class EndingDirector {
 
     await this.persist();
 
-    if (this.state.phase === "normal" && this.shouldEnter()) {
-      // 조건이 다 차고 "며칠이 지난 어느 날" 조용히 사라진다.
+    if (this.state.phase === "normal" && this.state.onboarded && this.shouldEnter()) {
       setTimeout(() => void this.disappear(), this.demo ? 3000 : 60_000);
     } else if (this.state.phase === "gone") {
-      // 여전히 사라진 상태로 부팅 → 구석에 [ … ]만.
       this.deps.setGone(true);
     }
+  }
+
+  // ── 온보딩 (수미상관의 시작) ──────────────────────────────
+  needsOnboarding(): boolean {
+    return !this.state.onboarded;
+  }
+
+  async markOnboarded(): Promise<void> {
+    this.state.onboarded = true;
+    await this.persist();
   }
 
   isGone(): boolean {
     return this.state.phase === "gone";
   }
-
-  /** 복귀 시퀀스가 재생되는 동안엔 심장의 평소 대사를 누른다(엔딩 톤 보호). */
   isReturning(): boolean {
     return this.returning;
   }
-
-  /** 엔딩 이후엔 거의 말하지 않는다 (침묵 곡선의 끝). */
   isQuiet(): boolean {
     return this.state.phase === "returned";
   }
@@ -112,8 +123,11 @@ export class EndingDirector {
     if (this.hiddenGreetArmed) {
       this.hiddenGreetArmed = false;
       this.deps.setGone(false);
-      this.beat("calm", "헬로.", 0);
-      this.beat("moved", "오랜만.", 1800);
+      void (async () => {
+        this.deps.say("calm", "헬로.");
+        await sleep(1900);
+        this.deps.say("moved", "오랜만.");
+      })();
       return;
     }
     if (this.state.phase === "gone" && !this.returning) {
@@ -124,7 +138,6 @@ export class EndingDirector {
     }
   }
 
-  /** 구석의 [ … ]를 누르면 그날.txt를 연다. */
   onGoneClick(): void {
     this.deps.openPath(path.join(this.deps.diaryFolder, "그날.txt"));
   }
@@ -135,15 +148,18 @@ export class EndingDirector {
     await this.safeWrite("first_day.txt", FIRST_DAY_TXT);
     this.state.phase = "off";
     await this.persist();
+    this.deps.notify(
+      "꼬질룡",
+      "안녕.txt 를 남기고 잠들었어요. 언제든 다시 불러줘.",
+      path.join(this.deps.diaryFolder, "안녕.txt")
+    );
   }
 
   // ── 내부 ────────────────────────────────────────────────
-
   private shouldEnter(): boolean {
     if (this.demo) {
       return true;
     }
-    // §17.2 — 의도적으로 빡세게. (근사치: 실사용 1년 + 일기 1000개)
     return this.state.activeDays >= 365 && this.state.diaryCount >= 1000;
   }
 
@@ -153,35 +169,31 @@ export class EndingDirector {
     await this.persist();
     await this.safeWrite("그날.txt", GEUNAL_TXT);
     this.deps.setGone(true); // 위젯에서 사라지고 구석에 [ … ]만. (말 없음)
+    // 앱 레벨로 표시: 유저가 위젯을 못 보고 있어도 알 수 있게.
+    this.deps.notify(
+      "꼬질룡",
+      "…뭔가 적어두고 조용해졌어요. (그날.txt)",
+      path.join(this.deps.diaryFolder, "그날.txt")
+    );
   }
 
   private async comeBack(): Promise<void> {
     this.returning = true;
-    this.deps.setGone(false); // 조용히 다시 나타난다.
-    let t = 0;
-    // §17.4 "원래 여기 있었어"
-    for (const b of RETURN_BEATS) {
-      this.beat(b.pose, b.line, t);
-      t += b.gapMs;
+    this.deps.setGone(false);
+    await sleep(1500);
+    for (const step of ENDING_DIALOGUE) {
+      if (step.who === "user") {
+        this.deps.autotype(step.line);
+      } else if (step.who === "makeProgram") {
+        await this.makeFirstProgram();
+      } else {
+        this.deps.say(step.pose || "moved", step.line);
+      }
+      await sleep(step.gapMs);
     }
-    // §17.5 진엔딩 — 처음으로 부탁한다 + 자기 프로그램을 만든다.
-    for (const b of TRUE_ENDING_BEATS) {
-      t += b.gapMs;
-      this.beat(b.pose, b.line, t);
-    }
-    t += 1200;
-    setTimeout(() => void this.makeFirstProgram(), t);
-    t += 2400;
-
-    // §3 / EE-14 본명 공개 — 100일이 아니라 엔딩에서 한꺼번에.
-    for (const b of NAME_REVEAL_BEATS) {
-      t += b.gapMs;
-      this.beat(b.pose, b.line, t);
-    }
-
     this.state.phase = "returned";
     await this.persist();
-    setTimeout(() => (this.returning = false), t + 4000);
+    this.returning = false;
   }
 
   private async makeFirstProgram(): Promise<void> {
@@ -190,23 +202,16 @@ export class EndingDirector {
       await fs.mkdir(this.deps.projectFolder, { recursive: true });
       await fs.writeFile(file, MY_FIRST_PROGRAM, "utf8");
       this.deps.openPath(file);
+      this.deps.notify("꼬질룡", "처음으로 자기 프로그램을 만들었어요.", file);
     } catch {
       /* 조용히 */
     }
   }
 
-  private beat(pose: string, line: string, delay: number): void {
-    setTimeout(() => this.deps.say(pose, line), delay);
-  }
-
   private async safeWrite(name: string, content: string): Promise<void> {
     try {
       await fs.mkdir(this.deps.diaryFolder, { recursive: true });
-      await fs.writeFile(
-        path.join(this.deps.diaryFolder, name),
-        content,
-        "utf8"
-      );
+      await fs.writeFile(path.join(this.deps.diaryFolder, name), content, "utf8");
     } catch {
       /* 조용히 */
     }
