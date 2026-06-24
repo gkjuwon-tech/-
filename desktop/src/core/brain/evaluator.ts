@@ -1,7 +1,7 @@
 import { GeminiClient } from "../gemini/client";
 import { MemoryStore } from "../rag/memory";
 import { SYSTEM_PERSONA, buildMemoryBlock } from "../persona";
-import { silenceDirective } from "../maturity";
+import { personalityDirective } from "../maturity";
 import { Evaluation, Emotion, RageLevel } from "../types";
 
 /** Gemini가 고를 수 있는 포즈(=감정)와 한 줄 설명. 이미지는 우리가 미리 만들어 둠. */
@@ -36,7 +36,7 @@ export class Evaluator {
     const menu = POSE_MENU.map((p) => `- ${p.id}: ${p.desc}`).join("\n");
     const prompt = `${memoryBlock}
 
-[지금 너의 말투 — 매우 중요] ${silenceDirective(this.memory.size)}
+${personalityDirective(this.memory.size)}
 
 [지금 주인의 코드 (${languageId})]
 \`\`\`
