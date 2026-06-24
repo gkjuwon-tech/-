@@ -76,6 +76,27 @@ export class MemoryStore {
     };
   }
 
+  /**
+   * 자유 문장(질문 등)과 의미적으로 관련된, 이미 배운 개념을 top-K로 끌어온다.
+   * 대화에서 "이건 배운 거니까 (두루뭉술~정확) 답할 수 있다"를 판단하는 데 쓴다.
+   */
+  async recallTop(query: string, k = 5, minScore = 0.5): Promise<string[]> {
+    await this.load();
+    if (this.entries.length === 0) {
+      return [];
+    }
+    const q = await this.gemini.embed(query).catch(() => null);
+    if (!q) {
+      return [];
+    }
+    return this.entries
+      .map((e) => ({ e, s: cosineSimilarity(q, e.embedding) }))
+      .sort((a, b) => b.s - a.s)
+      .slice(0, k)
+      .filter((x) => x.s >= minScore)
+      .map((x) => x.e.concept);
+  }
+
   async classify(
     concepts: string[]
   ): Promise<{ known: string[]; novel: string[] }> {

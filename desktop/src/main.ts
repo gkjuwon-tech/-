@@ -23,8 +23,9 @@ import { Presence } from "./presence";
 import { EventServer } from "./server";
 import { EasterEggs } from "./easterEggs";
 import { EndingDirector } from "./ending";
+import { ConversationStore } from "./core/conversation";
 import { FIRST_DAY_TXT, ONBOARDING } from "./core/endingTexts";
-import { SYSTEM_PERSONA, buildMemoryBlock } from "./core/persona";
+import { SYSTEM_PERSONA } from "./core/persona";
 import { DayLog, Emotion, SensorEvent } from "./core/types";
 
 const PRELOAD = path.join(__dirname, "preload.js");
@@ -68,6 +69,8 @@ app.whenReady().then(async () => {
 
   const evaluator = new Evaluator(gemini, memory);
   const heart = new Heart();
+  const conversation = new ConversationStore(config.conversationFile, gemini);
+  await conversation.load();
   const diary = new DiaryWriter(gemini, memory, config.diaryFolder);
   const bundledPoses = path.join(__dirname, "..", "assets", "poses");
   const poses = new PoseStudio(config.poseCacheDir, gemini, bundledPoses);
@@ -324,6 +327,30 @@ app.whenReady().then(async () => {
   }
 
   /** 위젯 입력창으로 말 걸면 꼬질룡이 짧게 답한다 (키 있을 때). */
+  /**
+   * 대화 ⨯ RAG ⨯ 성장 융합 규칙.
+   * - 배운 것(아래 목록)은 답한다. 단 성숙도에 따라 두루뭉술 → 정확.
+   * - 안 배운 건 솔직하게 모른다. 절대 지어내거나 어시스턴트처럼 척척 답하지 않는다.
+   */
+  function chatRules(size: number): string {
+    const precision =
+      size < 50
+        ? "근데 네가 배운 건 아직 어렴풋해. 두루뭉술하게, 어린애처럼, 가끔 틀려도 귀엽게 말해."
+        : size < 300
+        ? "이제 좀 알아. 배운 건 어느 정도 설명할 수 있어. 근데 완벽하진 않고 여전히 순진해."
+        : size < 800
+        ? "많이 배웠어. 배운 건 꽤 정확히 말할 수 있어. 그래도 말투는 끝까지 귀엽게."
+        : "이제 너만큼 알아. 배운 건 정확하게 설명해줄 수 있어. 근데 잘난 척 안 하고 다정하게.";
+    return `[대답 규칙 — 절대 어기지 마라]
+- 너는 척척박사 AI 어시스턴트가 아니라 '주인이랑 같이 배우는 공룡'이다.
+- 네가 아는 건 오직 아래 [관련해서 네가 배운 것] 목록에 있는 것뿐이다.
+- 목록에 있는(=배운) 개념은 답해도 된다. ${precision}
+- 목록에 없는(=아직 안 배운) 건 모른다. "그건 아직 잘 몰라…" 하고 같이 걱정하거나 옆에 있어줘. 절대 지어내지 마라.
+- 코드를 통째로 짜주거나 정답을 척척 내놓지 마라. 어디까지나 배운 만큼만, 네 귀여운 말투로.
+- ★단, 주인이 너한테 들려준 일상/취향/약속/주인에 대한 얘기는 '절대 안 잊는다'. [최근 대화]·[문득 기억나는 것들]에 있는 건 다정하게 또렷이 기억해줘. (코딩은 서툴러도, 주인은 안 까먹는 게 너야.)
+- 짧게 한두 문장. 한국어. 받침 흘리거나 맞춤법 틀려도 됨.`;
+  }
+
   async function freeChat(text: string): Promise<void> {
     if (goneFlag) {
       return;
@@ -333,16 +360,56 @@ app.whenReady().then(async () => {
       return;
     }
     try {
-      const reply = await gemini.generateText(
-        SYSTEM_PERSONA,
-        `${buildMemoryBlock(memory.knownConcepts())}\n\n주인이 너한테 말했어: "${text}"\n짧게 한 마디로 대답해. (한 문장)`,
-        { temperature: 0.95 }
-      );
+      // 이 질문과 관련해 "이미 배운" 개념 + 옛 대화 기억을 끌어온다.
+      const [learned, recalled] = await Promise.all([
+        memory.recallTop(text, 6),
+        conversation.recall(text),
+      ]);
+      const prompt = [
+        learned.length
+          ? `[관련해서 네가 배운 것]\n${learned.map((s) => "- " + s).join("\n")}`
+          : "[관련해서 네가 배운 것]\n(없음 — 이건 아직 안 배웠다)",
+        recalled.length
+          ? `[문득 기억나는 것들]\n${recalled.map((s) => "- " + s).join("\n")}`
+          : "",
+        `[최근 대화]\n${conversation.recentText() || "(아직 없음)"}`,
+        `[주인이 방금 한 말]\n"${text}"`,
+        chatRules(memory.size),
+        "위 규칙을 지켜서, 주인에게 한 마디 해라. 한국어로만.",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
+      const reply = await gemini.generateText(SYSTEM_PERSONA, prompt, {
+        temperature: 0.95,
+      });
+      const clean = reply.replace(/\s+/g, " ").trim().slice(0, 140);
+      if (!clean) {
+        return;
+      }
       heart.touch();
-      say("calm", reply.replace(/\s+/g, " ").trim().slice(0, 80));
-    } catch {
-      /* 조용히 */
+      say(chatPose(clean), clean);
+
+      // 대화 맥락 보존 + 일기에 반영.
+      await conversation.append("user", text);
+      await conversation.append("kkoji", clean);
+      day.moments.push(
+        `주인이 말 걸었다: "${text.slice(0, 50)}" — 나는 "${clean.slice(0, 50)}" 라고 했다.`
+      );
+      day.peakEmotion = strongest(day.peakEmotion, "moved");
+    } catch (err) {
+      if (!String(err).includes("NO_API_KEY")) {
+        console.error("[꼬질룡] 대화 실패:", err);
+      }
     }
+  }
+
+  /** 대답 분위기로 포즈 살짝 고르기 (귀여움 보조). */
+  function chatPose(reply: string): Emotion {
+    if (/[!]{1,}|좋|행복|신나|춤/.test(reply)) return "joy";
+    if (/몰라|걱정|괜찮|미안|슬/.test(reply)) return "worry";
+    if (/고마|사랑|보고/.test(reply)) return "moved";
+    return "calm";
   }
 
   ipcMain.on("pet", () => {

@@ -118,6 +118,9 @@ export class Config implements GeminiSettings {
   get endingStateFile(): string {
     return path.join(app.getPath("userData"), "ending.json");
   }
+  get conversationFile(): string {
+    return path.join(app.getPath("userData"), "conversation.json");
+  }
   /** §17.5 진엔딩에서 꼬질룡이 만드는 첫 프로그램이 들어갈 폴더. */
   get projectFolder(): string {
     return path.join(os.homedir(), "my_first_program");
