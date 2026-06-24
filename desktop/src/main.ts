@@ -14,6 +14,7 @@ import * as path from "path";
 import { Config } from "./config";
 import { GeminiClient } from "./core/gemini/client";
 import { MemoryStore } from "./core/rag/memory";
+import { EpisodicStore } from "./core/rag/episodic";
 import { Evaluator } from "./core/brain/evaluator";
 import { Heart } from "./core/heart/stateMachine";
 import { DiaryWriter } from "./core/diary/writer";
@@ -73,7 +74,9 @@ app.whenReady().then(async () => {
   const heart = new Heart();
   const conversation = new ConversationStore(config.conversationFile, gemini);
   await conversation.load();
-  const diary = new DiaryWriter(gemini, memory, config.diaryFolder);
+  const episodic = new EpisodicStore(config.episodicFile, gemini);
+  await episodic.load();
+  const diary = new DiaryWriter(gemini, memory, config.diaryFolder, episodic);
   const bundledPoses = path.join(__dirname, "..", "assets", "poses");
   const poses = new PoseStudio(config.poseCacheDir, gemini, bundledPoses);
   await poses.load();
@@ -358,10 +361,11 @@ app.whenReady().then(async () => {
       return;
     }
     try {
-      // 이 질문과 관련해 "이미 배운" 개념 + 옛 대화 기억을 끌어온다.
-      const [learned, recalled] = await Promise.all([
+      // 이 질문과 관련해 "이미 배운" 개념 + 옛 대화 기억 + 지난 성장의 날들을 끌어온다.
+      const [learned, recalled, grown] = await Promise.all([
         memory.recallTop(text, 6),
         conversation.recall(text),
+        episodic.recallWithOrigin(text, 3),
       ]);
       const prompt = [
         learned.length
@@ -369,6 +373,9 @@ app.whenReady().then(async () => {
           : "[관련해서 네가 배운 것]\n(없음 — 이건 아직 안 배웠다)",
         recalled.length
           ? `[문득 기억나는 것들]\n${recalled.map((s) => "- " + s).join("\n")}`
+          : "",
+        grown.length
+          ? `[지난 날들 — 우리가 같이 자라온 기억]\n${grown.map((s) => "- " + s).join("\n")}`
           : "",
         `[최근 대화]\n${conversation.recentText() || "(아직 없음)"}`,
         `[주인이 방금 한 말]\n"${text}"`,

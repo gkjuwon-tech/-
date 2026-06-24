@@ -1,0 +1,50 @@
+name: build-desktop
+
+# 꼬질룡 데스크탑 앱을 진짜 Windows .exe 로 빌드한다.
+# 리눅스에선 wine 없이 윈도우 인스톨러를 못 만들기 때문에, windows-latest 러너에서
+# 네이티브로 빌드해 아티팩트(설치본 + 포터블)를 올린다. 태그(v*)를 밀면 릴리스에도 첨부.
+
+on:
+  workflow_dispatch: {} # Actions 탭에서 수동 실행 → 아티팩트 다운로드
+  push:
+    tags:
+      - "v*" # 예: v0.2.0 태그를 밀면 빌드 후 릴리스에 .exe 첨부
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # package-lock 에 electron-builder 가 아직 없어서 ci 대신 install 사용.
+      - name: Install deps
+        run: npm install
+
+      - name: Build Windows installer + portable exe
+        run: npm run dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload .exe artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kkojilryong-windows-exe
+          path: |
+            desktop/release/*.exe
+          if-no-files-found: error
+
+      - name: Attach to release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/release/*.exe
