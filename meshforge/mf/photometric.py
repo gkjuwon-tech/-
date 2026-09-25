@@ -102,3 +102,20 @@ def integrate(N, mask, anchor=None, lam=0.02, min_nz=0.15, weights=None):
     z = lsqr(A, np.concatenate(b), atol=1e-8, btol=1e-8, iter_lim=4000)[0]
     D = np.full(mask.shape, np.nan, np.float32); D[mask] = z
     return D
+
+
+def masked_blur(F, mask, sigma):
+    m = mask.astype(np.float32)
+    den = ndimage.gaussian_filter(m, sigma)
+    out = np.stack([ndimage.gaussian_filter(F[..., c] * m, sigma) for c in range(F.shape[-1])], -1)
+    return out / np.maximum(den[..., None], 1e-6)
+
+
+def fuse_frequencies(N_ps, N_base, mask, sigma=8.0):
+    """Low frequencies from the geometric proxy, high-frequency detail from photometric stereo.
+    Generator relighting is locally faithful (scales, spikes) but globally biased."""
+    detail = N_ps - masked_blur(N_ps, mask, sigma)
+    N = masked_blur(N_base, mask, sigma) + detail
+    N /= np.maximum(np.linalg.norm(N, axis=-1, keepdims=True), 1e-6)
+    N[~mask] = 0
+    return N
