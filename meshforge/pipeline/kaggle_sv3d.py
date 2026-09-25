@@ -1,9 +1,10 @@
 """Kaggle T4 job: SV3D_p orbits from hero images. Pushed by push_sv3d.sh.
 Outputs /kaggle/working/out/<hero>/<orbit>/<azimuth>.png plus poses.json."""
-import glob, json, os, subprocess, sys, time
+import atexit, glob, json, os, shutil, subprocess, sys, time
+atexit.register(lambda: (shutil.rmtree("/kaggle/working/gm", ignore_errors=True), shutil.rmtree("/kaggle/working/tmp", ignore_errors=True)))
 t_start = time.time()
 sh = lambda c: subprocess.run(c, shell=True, check=True)
-sh("pip install -q omegaconf einops fire kornia open-clip-torch pytorch-lightning invisible-watermark rembg onnxruntime-gpu 'imageio[ffmpeg]' timm")
+sh("pip install -q omegaconf einops fire kornia open-clip-torch pytorch-lightning invisible-watermark rembg onnxruntime-gpu 'imageio[ffmpeg]' timm ftfy regex git+https://github.com/openai/CLIP.git")
 if not os.path.exists("/kaggle/working/gm"):
     sh("git clone -q --depth 1 https://github.com/Stability-AI/generative-models /kaggle/working/gm")
 def locate(name):
@@ -14,7 +15,10 @@ def locate(name):
 token = open(locate("hf_token.txt")).read().strip()
 from huggingface_hub import hf_hub_download
 os.makedirs("/kaggle/working/gm/checkpoints", exist_ok=True)
-hf_hub_download("stabilityai/sv3d", "sv3d_p.safetensors", local_dir="/kaggle/working/gm/checkpoints", token=token)
+# keep the 9 GB checkpoint out of /kaggle/working (that folder is the job's output)
+ck = hf_hub_download("stabilityai/sv3d", "sv3d_p.safetensors", local_dir="/tmp/ckpt", token=token)
+if not os.path.exists("/kaggle/working/gm/checkpoints/sv3d_p.safetensors"):
+    os.symlink(ck, "/kaggle/working/gm/checkpoints/sv3d_p.safetensors")
 os.chdir("/kaggle/working/gm"); sys.path.insert(0, "/kaggle/working/gm")
 import numpy as np, torch, imageio
 subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv"])
