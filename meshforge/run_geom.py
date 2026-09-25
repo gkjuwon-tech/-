@@ -72,7 +72,7 @@ for tgt in [30, 60, 120, 150]:
         log(f"view {tgt}: outside proxy {outside:.1%}, IoU with proxy {-neg_iou:.3f}, would carve {carved:.1%}, "
             f"M3 after {fmt(sc_t)}")
         ok = outside < 0.04 and min(sc_t.values()) > 0.9
-        if best is None or min(sc_t.values()) > best[0]:
+        if best is None or (ok, min(sc_t.values())) > (best[5], best[0]):
             best = (min(sc_t.values()), m, rgb, occ_t, sc_t, ok)
         if ok:
             break
