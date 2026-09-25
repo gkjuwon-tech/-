@@ -40,6 +40,8 @@ def main():
                     help="make the inputs look like real tools' output: monocular-estimator normals, "
                          "ragged masks, cameras a few degrees off (cameras.json keeps the NOMINAL pose)")
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--parts", default="normals,camera,mask",
+                    help="which degradations to apply (ablation): any of normals,camera,mask")
     a = ap.parse_args()
     m = trimesh.load(a.mesh)
     v = m.vertices.astype(np.float64)
@@ -73,11 +75,14 @@ def main():
     P = {"desert": dict(smooth_deg=18, pixel_deg=8, global_deg=6, ragged=2, shift=3, az_err=3, el_err=2),
          "desert_hard": dict(smooth_deg=26, pixel_deg=12, global_deg=10, ragged=3, shift=4, az_err=5, el_err=3)}.get(a.degrade)
     rng = np.random.default_rng(a.seed)
+    parts = set(a.parts.split(","))
     truth = {}
     for name, az, el in LAYOUTS[a.layout]:
         M_nom = camera(az, el); M_nom[:3, 3] += center
         if P:
             daz, dele = rng.uniform(-P["az_err"], P["az_err"]), rng.uniform(-P["el_err"], P["el_err"])
+            if "camera" not in parts:
+                daz = dele = 0.0
             M = camera(az + daz, el + dele); M[:3, 3] += center
             truth[name] = {"d_az": daz, "d_el": dele}
         else:
@@ -106,12 +111,16 @@ def main():
         if P:
             sel = mask >= 0.5
             n_clean = n.copy()
-            n = degrade_normals(n, sel, rng, smooth_deg=P["smooth_deg"], smooth_sigma=25 * R / 512,
-                                pixel_deg=P["pixel_deg"], global_deg=P["global_deg"])
+            nd = degrade_normals(n, sel, rng, smooth_deg=P["smooth_deg"], smooth_sigma=25 * R / 512,
+                                 pixel_deg=P["pixel_deg"], global_deg=P["global_deg"])
+            if "normals" in parts:
+                n = nd
             n[..., 2] = np.where(sel, n[..., 2], 0)
             mb, sh = degrade_mask(sel, rng, ragged=P["ragged"], shift=P["shift"])
+            if "mask" not in parts:
+                mb, sh = sel, (0, 0)
             truth[name]["mask_shift"] = sh
-            mask = ndimage.gaussian_filter(mb.astype(np.float32), 0.7)
+            mask = ndimage.gaussian_filter(mb.astype(np.float32), 0.7) if "mask" in parts else mask
             n = np.roll(np.roll(n, sh[0], 0), sh[1], 1) * (mask[..., None] >= 0.5)
             os.makedirs(os.path.join(a.out, "normals_gt"), exist_ok=True)   # evaluation only
             np.save(os.path.join(a.out, "normals_gt", f"{name}.npy"),
