@@ -13,7 +13,7 @@ C = SIZE / 2
 
 
 class Grid:
-    def __init__(self, step=2, half=160):
+    def __init__(self, step=2, half=256):
         self.step = step
         xs = np.arange(-half, half, step, dtype=np.float32)
         ys = np.arange(0, SIZE, step, dtype=np.float32)
