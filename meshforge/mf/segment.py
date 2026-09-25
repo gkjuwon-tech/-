@@ -5,13 +5,13 @@ from scipy import ndimage
 from .sheet import BG_RGB
 
 
-def mask_from_bg(cell, tol=18):
+def mask_from_bg(cell, tol=18, keep_largest=True):
     diff = np.abs(cell.astype(int) - np.array(BG_RGB)).max(axis=2)
     m = diff > tol
     m = ndimage.binary_opening(m, iterations=1)
     m = ndimage.binary_fill_holes(m)
     lab, n = ndimage.label(m)
-    if n > 1:  # keep largest component
+    if keep_largest and n > 1:  # keep largest component
         sizes = ndimage.sum(m, lab, range(1, n + 1))
         m = lab == (1 + int(np.argmax(sizes)))
     return m
