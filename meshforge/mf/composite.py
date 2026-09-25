@@ -25,3 +25,15 @@ def restore_and_blend(gen, guide, known, erode=2, feather=2.5):
     alpha = ndimage.gaussian_filter(alpha, 1.0)[..., None]
     out = alpha * guide.astype(np.float32) + (1 - alpha) * gen.astype(np.float32)
     return np.clip(out, 0, 255).astype(np.uint8), alpha[..., 0]
+
+
+def trusted_known(gen, guide, known, gen_mask, sigma=3.0, max_diff=28.0):
+    """Known pixels are only trusted where the proxy and the generator broadly agree.
+    Agreement is judged on a blurred colour field, so scale-level detail differences are
+    still overwritten by the propagated pixels, while places where the proxy geometry is
+    wrong (e.g. a thin wing hull projected as a slab) are left to the generator."""
+    gb = np.stack([ndimage.gaussian_filter(guide[..., c].astype(np.float32), sigma) for c in range(3)], -1)
+    ob = np.stack([ndimage.gaussian_filter(gen[..., c].astype(np.float32), sigma) for c in range(3)], -1)
+    agree = np.abs(gb - ob).mean(2) < max_diff
+    t = known & gen_mask & agree
+    return ndimage.binary_opening(t, iterations=1)
