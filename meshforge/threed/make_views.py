@@ -36,6 +36,10 @@ def main():
     ap.add_argument("--layout", default="six"); ap.add_argument("--res", type=int, default=1024)
     ap.add_argument("--samples", type=int, default=8_000_000)
     ap.add_argument("--yup", action="store_true", help="mesh is Y-up (Stanford scans)")
+    ap.add_argument("--degrade", default=None, choices=[None, "desert", "desert_hard"],
+                    help="make the inputs look like real tools' output: monocular-estimator normals, "
+                         "ragged masks, cameras a few degrees off (cameras.json keeps the NOMINAL pose)")
+    ap.add_argument("--seed", type=int, default=7)
     a = ap.parse_args()
     m = trimesh.load(a.mesh)
     v = m.vertices.astype(np.float64)
@@ -64,8 +68,20 @@ def main():
     meta = {"ortho_scale": ortho, "resolution": [R, R], "yaw_deg": 0.0,
             "normalization": {"applied_scale": scale, "applied_offset": offset.tolist()}, "views": {}}
     key = np.array([-0.35, 0.5, 0.79]); key /= np.linalg.norm(key)
+    import sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    from bench.degrade import degrade_normals, degrade_mask
+    P = {"desert": dict(smooth_deg=18, pixel_deg=8, global_deg=6, ragged=2, shift=3, az_err=3, el_err=2),
+         "desert_hard": dict(smooth_deg=26, pixel_deg=12, global_deg=10, ragged=3, shift=4, az_err=5, el_err=3)}.get(a.degrade)
+    rng = np.random.default_rng(a.seed)
+    truth = {}
     for name, az, el in LAYOUTS[a.layout]:
-        M = camera(az, el); M[:3, 3] += center
+        M_nom = camera(az, el); M_nom[:3, 3] += center
+        if P:
+            daz, dele = rng.uniform(-P["az_err"], P["az_err"]), rng.uniform(-P["el_err"], P["el_err"])
+            M = camera(az + daz, el + dele); M[:3, 3] += center
+            truth[name] = {"d_az": daz, "d_el": dele}
+        else:
+            M = M_nom
         right, up, back, loc = M[:3, 0], M[:3, 1], M[:3, 2], M[:3, 3]
         rel = pts - loc
         col = ((rel @ right) / ortho + 0.5) * S - 0.5
@@ -87,15 +103,30 @@ def main():
         n /= np.maximum(np.linalg.norm(n, axis=-1, keepdims=True), 1e-9)
         n[mask < 0.5] = 0
         n[(mask >= 0.5) & (n[..., 2] < 0), 2] *= -1
+        if P:
+            sel = mask >= 0.5
+            n_clean = n.copy()
+            n = degrade_normals(n, sel, rng, smooth_deg=P["smooth_deg"], smooth_sigma=25 * R / 512,
+                                pixel_deg=P["pixel_deg"], global_deg=P["global_deg"])
+            n[..., 2] = np.where(sel, n[..., 2], 0)
+            mb, sh = degrade_mask(sel, rng, ragged=P["ragged"], shift=P["shift"])
+            truth[name]["mask_shift"] = sh
+            mask = ndimage.gaussian_filter(mb.astype(np.float32), 0.7)
+            n = np.roll(np.roll(n, sh[0], 0), sh[1], 1) * (mask[..., None] >= 0.5)
+            os.makedirs(os.path.join(a.out, "normals_gt"), exist_ok=True)   # evaluation only
+            np.save(os.path.join(a.out, "normals_gt", f"{name}.npy"),
+                    np.roll(np.roll(n_clean, sh[0], 0), sh[1], 1).astype(np.float32))
         np.save(os.path.join(a.out, "normals", f"{name}.npy"), n.astype(np.float32))
         Image.fromarray((mask * 255).round().astype(np.uint8)).save(os.path.join(a.out, "views", "mask", f"{name}.png"))
         s = np.clip(0.25 + 0.75 * np.clip(n @ key, 0, None), 0, 1)
         rgb = np.full((R, R, 3), 128.0); sel = mask >= 0.5
         rgb[sel] = s[sel, None] * np.array([150, 190, 160])
         Image.fromarray(rgb.astype(np.uint8)).save(os.path.join(a.out, "views", "rgb", f"{name}.png"))
-        meta["views"][name] = {"matrix_world": M.tolist()}
+        meta["views"][name] = {"matrix_world": M_nom.tolist()}
         print(name, "coverage", round(float((mask > 0.5).mean()), 3), flush=True)
     json.dump(meta, open(os.path.join(a.out, "views", "cameras.json"), "w"), indent=1)
+    if truth:
+        json.dump(truth, open(os.path.join(a.out, "degradation_truth.json"), "w"), indent=1)
 
 
 if __name__ == "__main__":
