@@ -16,6 +16,10 @@ import torch.nn.functional as F
 ap = argparse.ArgumentParser()
 ap.add_argument("--iters", type=int, default=300)
 ap.add_argument("--anchor", type=float, default=0.05, help="δ 크기 벌점 (DA3에 붙잡는 힘)")
+ap.add_argument("--base", default=None, help="1024px 뼈대 깊이 npz (예: work/fused_depth.npz). 없으면 DA3")
+ap.add_argument("--smooth", type=float, default=0.0, help="뼈대 가우시안 스무딩 σ(px), 줄무늬 제거용")
+ap.add_argument("--finest", type=int, default=1, help="다해상도 잔차의 가장 촘촘한 격자 간격(px)")
+ap.add_argument("--curv", type=float, default=0.0, help="잔차 라플라시안 벌점 (긁힘 줄무늬 억제)")
 ap.add_argument("--lr", type=float, default=1e-4)
 ap.add_argument("--out", default="work/sfs_view_000.npz")
 args = ap.parse_args()
@@ -31,9 +35,23 @@ mask = alpha >= 0.5
 # 렌더러의 색 모델 역산: rgb = clip(col * [0.95,0.92,0.86] * 1.05), 초록 채널 사용
 I = rgba[..., 1] / 255.0 / (0.92 * 1.05)
 
-d_lo = np.load("work/da3_mv504_pose.npz")["depth"][0]
 from q1_front import upsample_depth  # noqa: E402
-z0 = upsample_depth(d_lo, mask)
+if args.base:
+    zb = np.load(args.base)["depth"][0]
+    z0 = zb.astype(np.float64)
+    hole = mask & (z0 <= 0)                        # 뼈대가 못 덮은 마스크 픽셀은 가장 가까운 값으로
+    if hole.any():
+        _, idx = cv2.distanceTransformWithLabels((z0 <= 0).astype(np.uint8), cv2.DIST_L2, 5,
+                                                 labelType=cv2.DIST_LABEL_PIXEL)
+        yy, xx = np.nonzero(z0 > 0)
+        lut = np.zeros((idx.max() + 1, 2), int)
+        lut[idx[z0 > 0]] = np.stack([yy, xx], 1)
+        src = lut[idx]
+        z0 = z0[src[..., 0], src[..., 1]]
+else:
+    z0 = upsample_depth(np.load("work/da3_mv504_pose.npz")["depth"][0], mask)
+if args.smooth > 0:
+    z0 = cv2.GaussianBlur(z0.astype(np.float32), (0, 0), args.smooth).astype(np.float64)
 
 # 물체 bbox로 자르기
 ys, xs = np.nonzero(mask)
@@ -89,7 +107,7 @@ valid = valid & ~jump
 
 # 다해상도 잔차: δ = Σ 업샘플(거친 격자들). 큰 기울기를 빠르게 고칠 수 있게
 levels = [torch.zeros((max(Hc // f, 2), max(Wc // f, 2)), dtype=torch.float64, requires_grad=True)
-          for f in (32, 16, 8, 4, 2, 1)]
+          for f in (32, 16, 8, 4, 2, 1) if f >= args.finest]
 opt = torch.optim.Adam(levels, lr=args.lr)
 
 
@@ -104,7 +122,9 @@ for it in range(args.iters):
     s = shade(normals(z))
     loss_sh = ((s - It)[valid] ** 2).mean()
     loss_an = args.anchor * ((delta[m] / scale) ** 2).mean() * 1e4
-    loss = loss_sh + loss_an
+    lap = (delta[1:-1, 1:-1] * 4 - delta[:-2, 1:-1] - delta[2:, 1:-1] - delta[1:-1, :-2] - delta[1:-1, 2:])
+    loss_cv = args.curv * ((lap[m[1:-1, 1:-1]] / scale) ** 2).mean() * 1e8
+    loss = loss_sh + loss_an + loss_cv
     loss.backward()
     opt.step()
     if it % 50 == 0 or it == args.iters - 1:
@@ -127,11 +147,13 @@ def err(n):
 gt_d = np.load("data/lucy/turnaround_8v/view_000_depth.npy")[sl]
 delta = make_delta().detach()
 n_da3, n_sfs = normals(z0t), normals(z0t + delta)
+n_da3_raw = normals(torch.tensor(upsample_depth(np.load("work/da3_mv504_pose.npz")["depth"][0], mask)[sl], dtype=torch.float64))
 n_gtd = normals(torch.tensor(np.where(gt_d > 0, gt_d, z0[sl]), dtype=torch.float64))
 print("법선 오차 (중앙값°, <11.25° 비율, <30° 비율)")
 print("  정답 깊이에서 계산 :", err(n_gtd))
-print("  DA3 깊이          :", err(n_da3))
-print("  DA3 + 음영 보정    :", err(n_sfs))
+print("  DA3 원본           :", err(n_da3_raw))
+print("  뼈대(보정 전)       :", err(n_da3))
+print("  뼈대 + 음영 보정    :", err(n_sfs))
 full = z0.copy()
 full[sl] = (z0t + delta).detach().numpy()
 np.savez(args.out, depth=full[None].astype(np.float32))
@@ -148,8 +170,8 @@ def vis(n):
 
 fy0 = 60
 crop = (slice(fy0, fy0 + 220), slice(Wc // 2 - 150, Wc // 2 + 150))
-tiles = [vis(n_gtd)[crop], vis(n_da3)[crop], vis(n_sfs)[crop]]
-for tl, txt in zip(tiles, ["GT (side light)", "DA3", "DA3+SfS"]):
+tiles = [vis(n_gtd)[crop], vis(n_da3_raw)[crop], vis(n_da3)[crop], vis(n_sfs)[crop]]
+for tl, txt in zip(tiles, ["GT (side light)", "DA3 raw", "skeleton", "skeleton+SfS"]):
     cv2.putText(tl, txt, (6, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 255, 2)
 cv2.imwrite(args.out.replace(".npz", "_face.png"), cv2.resize(np.hstack(tiles), None, fx=2, fy=2,
                                                               interpolation=cv2.INTER_NEAREST))
