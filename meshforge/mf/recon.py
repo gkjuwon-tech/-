@@ -93,3 +93,50 @@ def reconstruct(masks, normals, calibrate=True, step=2, log=print):
     F, W = tsdf_fuse(g, views, off)
     hull_mesh = mesh_from_field(g, np.where(occ, -1.0, 1.0).astype(np.float32))
     return mesh_from_field(g, F), hull_mesh, off, views
+
+
+def hull_interval(grid, occ, t, off=0.0):
+    """Front and back depth of the hull along each pixel ray (midpoint is a better prior than front)."""
+    X, Y, Z = grid.X[occ], grid.Y[occ], grid.Z[occ]
+    u, v, w = project((X, Y, Z), t, off)
+    ui = np.clip(np.round(u).astype(int), 0, SIZE - 1)
+    vi = np.clip(np.round(v).astype(int), 0, SIZE - 1)
+    front = np.full((SIZE, SIZE), -np.inf, np.float32); back = np.full((SIZE, SIZE), np.inf, np.float32)
+    np.maximum.at(front, (vi, ui), w); np.minimum.at(back, (vi, ui), w)
+    s = grid.step
+    front = ndimage.grey_dilation(front, size=(s + 1, s + 1))
+    back = -ndimage.grey_dilation(-back, size=(s + 1, s + 1))
+    return front, back
+
+
+def edge_weights(N, mask, nz_edge=0.25):
+    """Gradient terms are unreliable where the surface turns away (likely occlusion edge)."""
+    w = np.clip((N[..., 2] - 0.05) / nz_edge, 0.0, 1.0) ** 2
+    w = ndimage.minimum_filter(w, size=3)
+    return np.maximum(w, 1e-3)
+
+
+def reconstruct_iterative(masks, normals, calibrate=True, step=2, rounds=4, lam=0.05, log=print, gt_eval=None):
+    """Views anchor each other: integrate every view against the current fused surface, re-fuse, repeat."""
+    g4, g = Grid(step=4), Grid(step=step)
+    off = calibrate_offsets(g4, masks, search=6, step=1, rounds=1) if calibrate else {t: 0.0 for t in masks}
+    occ = carve(g, masks, off)
+    anchors = {}
+    for t in masks:
+        f, b = hull_interval(g, occ, t, off.get(t, 0.0))
+        anchors[t] = np.where(np.isfinite(f) & np.isfinite(b), 0.5 * (f + b), np.nan)
+    hull_mesh = mesh_from_field(g, np.where(occ, -1.0, 1.0).astype(np.float32))
+    for r in range(rounds):
+        views = {}
+        for t in masks:
+            m = masks[t] & np.isfinite(anchors[t])
+            D = integrate_lam(normals[t], m, anchors[t], np.full(m.shape, lam), edge_weights(normals[t], m))
+            views[t] = (m, D, normals[t])
+        F, W = tsdf_fuse(g, views, off)
+        occ_r = F < 0
+        if gt_eval is not None:
+            gt_eval(r, views)
+        for t in masks:  # the fused surface becomes the next anchor (hull midpoint where nothing was fused)
+            sil, fd, _ = render(g, occ_r, t, off.get(t, 0.0))
+            anchors[t] = np.where(sil & np.isfinite(fd), fd, anchors[t])
+    return mesh_from_field(g, F), hull_mesh, off, views
