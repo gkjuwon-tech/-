@@ -1,0 +1,30 @@
+{
+ "view": "view_000",
+ "depth_source": "work/da3_mv504_pose.npz",
+ "vertices": 153927,
+ "quads": 145100,
+ "triangles": 0,
+ "cut_edges": 5244,
+ "class_share": {
+  "front": 0.4455,
+  "up": 0.0873,
+  "down": 0.0574,
+  "side": 0.3911,
+  "grazing": 0.0187
+ },
+ "iou_binary": 1.0,
+ "iou_soft": 0.99504,
+ "depth_err_raw_median_over_range": 0.0567,
+ "depth_err_aligned_median_over_range": 0.0502,
+ "normal_err_deg_median": 26.85,
+ "normal_err_deg_mean": 33.32,
+ "spill_outside_gt_silhouette": {
+  "view_045": 0.0689,
+  "view_090": 0.1217,
+  "view_135": 0.1218,
+  "view_180": 0.0414,
+  "view_225": 0.0821,
+  "view_270": 0.1368,
+  "view_315": 0.1034
+ }
+}

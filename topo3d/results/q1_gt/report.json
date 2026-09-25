@@ -1,0 +1,30 @@
+{
+ "view": "view_000",
+ "depth_source": "gt",
+ "vertices": 151005,
+ "quads": 145100,
+ "triangles": 0,
+ "cut_edges": 3842,
+ "class_share": {
+  "front": 0.5143,
+  "up": 0.0771,
+  "down": 0.0664,
+  "side": 0.337,
+  "grazing": 0.0052
+ },
+ "iou_binary": 1.0,
+ "iou_soft": 0.99504,
+ "depth_err_raw_median_over_range": 0.0015,
+ "depth_err_aligned_median_over_range": 0.001,
+ "normal_err_deg_median": 2.86,
+ "normal_err_deg_mean": 5.75,
+ "spill_outside_gt_silhouette": {
+  "view_045": 0.0033,
+  "view_090": 0.0003,
+  "view_135": 0.0028,
+  "view_180": 0.0028,
+  "view_225": 0.0039,
+  "view_270": 0.0004,
+  "view_315": 0.0022
+ }
+}
