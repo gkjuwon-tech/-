@@ -142,7 +142,7 @@ def mirror_consensus(masks, Ms, meta, center):
         # a pixel (row, col) of a sees the ray P(t) = la + x ra + y ua + t ba; its image in b
         rr, cc = np.mgrid[0:R, 0:R].astype(np.float64)
         x = ((cc + 0.5) / R - 0.5) * ortho; y = (0.5 - (rr + 0.5) / R) * ortho
-        P = la + x[..., None] * ra + y[..., None] * ua
+        P = la + x[..., None] * ra + y[..., None] * ua - np.dot(la - center, ba) * ba   # on the plane through the object centre
         relb = P - lb
         cb = (relb @ rb / ortho + 0.5) * R - 0.5; rb_ = (0.5 - relb @ ub / ortho) * R - 0.5
         mb_in_a = ndimage.map_coordinates(masks[b], [rb_, cb], order=1, cval=0)
@@ -151,7 +151,7 @@ def mirror_consensus(masks, Ms, meta, center):
         # and back into b
         rr2, cc2 = rr, cc
         x2 = ((cc2 + 0.5) / R - 0.5) * ortho; y2 = (0.5 - (rr2 + 0.5) / R) * ortho
-        P2 = lb + x2[..., None] * rb + y2[..., None] * ub
+        P2 = lb + x2[..., None] * rb + y2[..., None] * ub - np.dot(lb - center, bb) * bb
         rela = P2 - la
         ca = (rela @ ra / ortho + 0.5) * R - 0.5; ra_ = (0.5 - rela @ ua / ortho) * R - 0.5
         out[b] = ndimage.map_coordinates(avg, [ra_, ca], order=1, cval=0)
@@ -207,6 +207,8 @@ def correct_normals(n, mask, sigma_frac=0.06, max_deg=40):
     tgt[:, 2] = np.clip(src[:, 2], 0, 0.35)
     tgt /= np.linalg.norm(tgt, axis=1, keepdims=True)
     Rg = kabsch(src, tgt)
+    if np.degrees(np.arccos(np.clip((np.trace(Rg) - 1) / 2, -1, 1))) > 25:   # implausible: keep the estimator's frame
+        Rg = np.eye(3)
     n1 = n @ Rg.T
     src1 = n1[ok] / np.maximum(np.linalg.norm(n1[ok], axis=1, keepdims=True), 1e-9)
     aa = min_rotation(src1, tgt)
