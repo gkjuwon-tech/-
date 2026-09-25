@@ -20,8 +20,9 @@ import torch, cv2
 dev = "cuda"
 status = {}
 
-# 1) MoGe-2 ViT-L normal
+# 1) MoGe-2 ViT-L normal (v1에서 완료, 건너뜀)
 try:
+    raise RuntimeError("skip")
     sh("pip install -q git+https://github.com/microsoft/MoGe.git")
     from moge.model.v2 import MoGeModel
     m = MoGeModel.from_pretrained("Ruicheng/moge-2-vitl-normal").to(dev).eval()
@@ -42,7 +43,7 @@ except Exception:
 
 # 2) StableNormal (turbo 먼저, 실패하면 일반)
 try:
-    sh("pip install -q diffusers transformers accelerate")
+    sh("pip install -q 'diffusers==0.30.3' transformers accelerate")
     from PIL import Image
     N = []
     try:
@@ -81,16 +82,16 @@ try:
         q = f"/kaggle/crop/{v['name']}.png"; cv2.imwrite(q, cv2.imread(p)[y0:y1, x0:x1]); cp.append(q)
         k = np.array(v["K"]); k[0, 2] -= x0; k[1, 2] -= y0; Ks.append(k)
         e = np.eye(4); e[:3, :3] = v["R"]; e[:3, 3] = v["t"]; Es.append(e)
-    for res in (1008,):
+    for res in (756,):
         t = time.time()
         with torch.no_grad():
             pr = m.inference(cp, intrinsics=np.array(Ks, np.float32), extrinsics=np.array(Es, np.float32), process_res=res)
         log(f"da3 res {res} {time.time()-t:.1f}s depth {pr.depth.shape}")
         np.savez_compressed(f"{OUT}/da3_base_crop{res}.npz", depth=pr.depth.astype(np.float32), conf=pr.conf.astype(np.float16),
                             crop=np.array([y0, y1, x0, x1]))
-    status["da3_1008"] = "ok"
+    status["da3_756"] = "ok"
 except Exception:
-    traceback.print_exc(); status["da3_1008"] = "fail"
+    traceback.print_exc(); status["da3_756"] = "fail"
 
 json.dump(status, open(f"{OUT}/status.json", "w"))
 log(f"status {status}")
