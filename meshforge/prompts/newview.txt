@@ -1,0 +1,4 @@
+Create ONE square 1024x1024 image: the attached dragon figure seen from a turntable angle of {angle} degrees (0 = front view, 90 = side view with the dragon facing image-left, 180 = back view).
+The first attached image is a rough gray clay proxy of the figure rendered from exactly that angle: use it for the exact POSE, POSITION, SCALE and camera angle. The proxy is only an approximate hull: the real figure never extends outside the proxy outline, and thin parts such as the wing membranes are much thinner than the proxy suggests, so the real outline is inside or on the proxy outline.
+The second image is the dragon from the front, the third is the nearest existing view: copy the exact design (horns, spikes, wing bones, scale pattern, colors) from them.
+Orthographic, camera at the same height as in the proxy, whole figure visible, flat neutral gray #808080 background, soft even lighting, no shadows, no text.
