@@ -76,7 +76,7 @@ def iou(a, b):
     return (a & b).sum() / u if u else 1.0
 
 
-def calibrate(meta, masks, center, lo_res=256, n=176, rounds=3, prior=0.004):
+def calibrate(meta, masks, center, lo_res=256, n=176, rounds=3, prior=0.004, shift_only=True):
     """Coordinate descent per view. Objective: the view's silhouette must lie inside the hull
     carved by the other views (that hull is a superset of the object, so containment -- not
     IoU, which a fat hull biases -- is the right test), with a mild preference for small fixes."""
@@ -110,7 +110,7 @@ def calibrate(meta, masks, center, lo_res=256, n=176, rounds=3, prior=0.004):
             step = steps / (2 ** rd)
             for _ in range(4):
                 improved = False
-                for k in range(4):
+                for k in ((2, 3) if shift_only else range(4)):
                     for sgn in (-1, 1):
                         p = params[v].copy(); p[k] = np.clip(p[k] + sgn * step[k], -limit[k], limit[k])
                         s_ = score(p)
@@ -236,6 +236,9 @@ def main():
     ap.add_argument("src"); ap.add_argument("--out", default=None)
     ap.add_argument("--no-cameras", action="store_true"); ap.add_argument("--no-masks", action="store_true")
     ap.add_argument("--no-normals", action="store_true")
+    ap.add_argument("--rotate", action="store_true",
+                    help="also correct camera rotations. Off by default: stage2's hull_field bounds its grid "
+                         "with the axis-aligned views, and a rotated camera is no longer axis-aligned")
     a = ap.parse_args()
     out = a.out or a.src.rstrip("/") + "_fixed"
     meta = json.load(open(os.path.join(a.src, "views", "cameras.json")))
@@ -245,7 +248,7 @@ def main():
     center = look_center(meta)
     Ms = {v: np.array(meta["views"][v]["matrix_world"]) for v in names}
     if not a.no_cameras:
-        Ms, params = calibrate(meta, masks, center)
+        Ms, params = calibrate(meta, masks, center, shift_only=not a.rotate)
         log("camera corrections (d_az, d_el, du, dv):", {v: [round(x, 2) for x in p] for v, p in params.items()})
     if not a.no_masks:
         masks = mirror_consensus(masks, Ms, meta, center)
