@@ -1,0 +1,6 @@
+.venv/
+hf_cache/
+models/
+da3/
+__pycache__/
+*.pyc
