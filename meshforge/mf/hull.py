@@ -97,3 +97,17 @@ def calibrate_offsets(grid, masks, fixed=0, search=24, step=2, rounds=2):
                     best = (val, float(d))
             offsets[t] = best[1]
     return offsets
+
+
+def calibrate_angle(grid, base_masks, base_offsets, mask, candidates, search=12, step=3):
+    """Find the true azimuth (and offset) of a view whose nominal angle the generator ignored."""
+    best = (-1.0, None, 0.0)
+    for a in candidates:
+        for d in range(-search, search + 1, step):
+            masks = dict(base_masks); masks[a] = mask
+            off = dict(base_offsets); off[a] = float(d)
+            occ = carve(grid, masks, off)
+            v = reprojection_scores(grid, occ, {a: mask}, off)[a]
+            if v > best[0]:
+                best = (v, a, float(d))
+    return best
