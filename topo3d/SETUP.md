@@ -27,3 +27,13 @@ git clone https://github.com/ByteDance-Seed/Depth-Anything-3 da3 && pip install 
 ```
 python -c "from huggingface_hub import snapshot_download; snapshot_download('depth-anything/DA3-BASE', local_dir='models/DA3-BASE')"
 ```
+
+## 테스트 데이터: 스탠포드 루시 8뷰
+`inputs/lucy_8v/`에 커밋됨: RGBA·회색배경 PNG 8뷰(1024px), `cameras.json`(OpenCV K, R, t), `sheet.png`.
+정답 깊이/법선(`*_depth.npy`, `*_normal.npy`, 133MB)은 용량 때문에 커밋하지 않음. 재생성 방법:
+```
+mkdir -p data/lucy && cd data/lucy
+curl -O http://graphics.stanford.edu/data/3Dscanrep/lucy.tar.gz && tar xzf lucy.tar.gz && cd ../..
+python tools/prep_lucy.py data/lucy/lucy.ply data/lucy/lucy_4m.ply
+python tools/render_turnaround.py data/lucy/lucy_4m.ply data/lucy/turnaround_8v --size 1024 --ssaa 2 --yaw 180
+```

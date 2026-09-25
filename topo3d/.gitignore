@@ -4,3 +4,5 @@ models
 da3
 __pycache__/
 *.pyc
+data
+renders_tmp
