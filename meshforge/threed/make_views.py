@@ -8,6 +8,19 @@ import trimesh
 from PIL import Image
 from scipy import ndimage
 
+def _orbits(rings, n):
+    """rings: elevations; n frames per ring, azimuth step 360/n (n divisible by 4 keeps 0/90/180/270)."""
+    out = []
+    for el in rings:
+        for k in range(n):
+            az = k * 360.0 / n
+            nm = f"e{int(el):+03d}_a{int(round(az)):03d}"
+            if el == 0 and az in (0, 90, 180, 270):   # stage2's hull grid needs the axis-aligned views
+                nm = {0: "01_front", 90: "02_right", 180: "03_back", 270: "04_left"}[az]
+            out.append([nm, az, el])
+    return out
+
+
 LAYOUTS = {
     "six": [["01_front", 0, 0], ["d045", 45, 0], ["02_right", 90, 0], ["03_back", 180, 0],
             ["04_left", 270, 0], ["d315", 315, 0]],
@@ -16,6 +29,8 @@ LAYOUTS = {
               ["07_az45_up", 45, 45], ["08_az135_up", 135, 45], ["09_az225_up", 225, 45],
               ["10_az315_up", 315, 45], ["11_az45_dn", 45, -45], ["12_az135_dn", 135, -45],
               ["13_az225_dn", 225, -45], ["14_az315_dn", 315, -45]],
+    "orbit3x24": _orbits((0, 30, -20), 24),
+    "orbit1x24": _orbits((0,), 24),
 }
 
 
