@@ -1,0 +1,16 @@
+{
+  "id": "flyjw12/topo3d-moge-zoom",
+  "title": "topo3d moge zoom",
+  "code_file": "run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": ["flyjw12/topo3d-lucy-8v"],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": [],
+  "machine_shape": "NvidiaTeslaT4"
+}
