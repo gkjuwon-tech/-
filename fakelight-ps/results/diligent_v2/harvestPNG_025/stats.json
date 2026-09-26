@@ -1,0 +1,14 @@
+{
+  "exposure_gain": 4.246,
+  "ic_rot_s1": 332.9,
+  "ic_plain_s1": 339.6,
+  "ic_plain_s2": 339.3,
+  "nlr": 514.3,
+  "sdm_ic_rot": 16,
+  "sdm_ic_plain": 32,
+  "sdm_nlr_all": 27,
+  "rose": "ok",
+  "mono_dsine": "ModuleNotFoundError(\"No module named 'utils.rotation'\")",
+  "mono_moge2": 69.5,
+  "total_seconds": 2297.8
+}
