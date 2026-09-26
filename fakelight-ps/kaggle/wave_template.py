@@ -23,12 +23,16 @@ stats = {}
 
 sh("apt-get install -y -qq libegl1 libgl1 libgles2 libosmesa6 > /dev/null 2>&1", check=False)
 sh("pip install -q 'pytorch-lightning==1.9.5' 'omegaconf==2.3.0' einops kornia taming-transformers-rom1504 "
-   "git+https://github.com/openai/CLIP.git trimesh pyrender 'pyglet<2' icecream ipdb imageio pytz accelerate "
+   "git+https://github.com/openai/CLIP.git trimesh pyrender 'pyglet<2' 'PyOpenGL==3.1.7' icecream ipdb imageio pytz accelerate "
    "scikit-image safetensors")
 sh(f"git clone -q --depth 1 https://github.com/jwoo-park0/WAVE.git {W}/WAVE")
 sh(f"git clone -q --depth 1 https://github.com/LiheYoung/Depth-Anything.git {W}/Depth-Anything")
 # Depth-Anything은 DINOv2를 작업 폴더 기준 torchhub/에서 불러온다 → WAVE 폴더에 연결
 sh(f"ln -s {W}/Depth-Anything/torchhub {W}/WAVE/torchhub && ls {W}/WAVE/torchhub")
+# WAVE의 load_depth_model은 WAVE/Depth-Anything/ckpt/depth_anything_vitl14.pth를 직접 읽는다
+os.makedirs(f"{W}/WAVE/Depth-Anything/ckpt", exist_ok=True)
+sh(f"curl -sSL -o {W}/WAVE/Depth-Anything/ckpt/depth_anything_vitl14.pth "
+   "https://huggingface.co/spaces/LiheYoung/Depth-Anything/resolve/main/checkpoints/depth_anything_vitl14.pth")
 ck = f"{W}/WAVE/configs/warp_plus_pose/iter_112000"
 os.makedirs(ck, exist_ok=True)
 sh(f"curl -sSL -o {ck}/model.safetensors "
@@ -96,6 +100,10 @@ _pr = subprocess.run("python -c 'import importlib.util as u; print(u.find_spec(\
                      shell=True, capture_output=True, text=True).stdout.strip()
 _init = open(f"{_pr}/__init__.py").read().replace("from .viewer import Viewer", "Viewer = None")
 open(f"{_pr}/__init__.py", "w").write(_init)
+# 소프트웨어/헤드리스 GL에서는 VAO 없이 셰이더 검증이 실패한다 → 검증만 끈다 (렌더링은 그대로)
+_sp = open(f"{_pr}/shader_program.py").read().replace(
+    "gl_shader_utils.compileProgram(*shader_ids)", "gl_shader_utils.compileProgram(*shader_ids, validate=False)")
+open(f"{_pr}/shader_program.py", "w").write(_sp)
 # pytorch_lightning 신버전에서 사라진 import 정리
 for f in glob.glob("ldm/**/*.py", recursive=True) + glob.glob("dataloader/*.py"):
     s = open(f).read()
