@@ -1,0 +1,23 @@
+{
+  "cs2_T14": {
+    "ok": true,
+    "n": 13,
+    "seconds": 411.5
+  },
+  "cs1_T14": {
+    "ok": true,
+    "n": 13,
+    "seconds": 270.8
+  },
+  "cs0.5_T14": {
+    "ok": true,
+    "n": 13,
+    "seconds": 271.3
+  },
+  "cs4_T14": {
+    "ok": true,
+    "n": 13,
+    "seconds": 271.9
+  },
+  "total_seconds": 1254.6
+}
