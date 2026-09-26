@@ -30,6 +30,8 @@ def main():
     ap.add_argument("--wheel-kernel", default=None,
                     help="nvdiffrast wheel을 빌드해둔 커널 (예: user/mvadapter-env)")
     ap.add_argument("--dataset", nargs="*", default=[], help="마운트할 Kaggle 데이터셋 (user/slug)")
+    ap.add_argument("--define", nargs="*", default=[], metavar="KEY=VALUE",
+                    help="템플릿의 __KEY__ 자리를 VALUE로 (예: HF_TOKEN=환경변수 이름 앞에 $를 붙이면 환경변수 값)")
     ap.add_argument("--out", default="build/kernel")
     args = ap.parse_args()
 
@@ -44,6 +46,11 @@ def main():
             files[key] = base64.b64encode(open(p, "rb").read()).decode()
     code = (tpl.replace("__INPUT_PNG_B64__", b64).replace("__BASE_MODELS__", json.dumps(args.models))
             .replace("__INPUT_FILES__", json.dumps(files)))
+    for spec in args.define:
+        key, val = spec.split("=", 1)
+        if val.startswith("$"):  # 비밀값은 명령줄에 직접 쓰지 않고 환경변수에서 읽는다
+            val = os.environ[val[1:]]
+        code = code.replace(f"__{key}__", val)
 
     os.makedirs(args.out, exist_ok=True)
     code_file = f"{args.slug}.py"
