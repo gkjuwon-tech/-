@@ -89,6 +89,11 @@ def object_orbit(dc, yaws):
 '''
 src = src.replace("def setup_model():", helper + "def setup_model():", 1)
 open("inference.py", "w").write(src)
+# pyrender는 import할 때 뷰어(pyglet 창)까지 불러서 화면 없는 서버에서 죽는다 → 뷰어 import만 제거
+_pr = subprocess.run("python -c 'import importlib.util as u; print(u.find_spec(\"pyrender\").submodule_search_locations[0])'",
+                     shell=True, capture_output=True, text=True).stdout.strip()
+_init = open(f"{_pr}/__init__.py").read().replace("from .viewer import Viewer", "Viewer = None")
+open(f"{_pr}/__init__.py", "w").write(_init)
 # pytorch_lightning 신버전에서 사라진 import 정리
 for f in glob.glob("ldm/**/*.py", recursive=True) + glob.glob("dataloader/*.py"):
     s = open(f).read()

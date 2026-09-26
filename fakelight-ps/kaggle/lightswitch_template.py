@@ -24,7 +24,7 @@ os.makedirs(OUT, exist_ok=True)
 T0 = time.time()
 stats = {}
 
-sh("pip install -q -U 'diffusers>=0.31' accelerate imageio plyfile rembg onnxruntime-gpu")
+sh("pip install -q -U 'diffusers>=0.31' accelerate imageio plyfile rembg onnxruntime")
 sh(f"git clone -q --depth 1 https://github.com/yehonathanlitman/LightSwitch.git {W}/LightSwitch")
 sh(f"git clone -q https://github.com/satoshi-ikehata/SDM-UniPS-CVPR2023.git {W}/SDM-UniPS")
 sh(f"curl -sSL -o {W}/sdm_ckpt.zip 'https://www.dropbox.com/s/yu8h6g0zp07mumd/checkpoint.zip?dl=1' "
@@ -88,6 +88,9 @@ np.save(f"{OUT}/light_dirs_world.npy", L)
 # ---------- 3) 공식 코드 패치 ----------
 s = open("produce_gs_relightings.py").read()
 s = s.replace("stabilityai/stable-diffusion-2-1-base", "sd2-community/stable-diffusion-2-1-base")
+# model_index.json이 CLIPFeatureExtractor 클래스를 이름으로 부르므로 transformers에 별칭도 달아둔다
+s = ("import transformers\nif not hasattr(transformers, 'CLIPFeatureExtractor'):\n"
+     "    transformers.CLIPFeatureExtractor = transformers.CLIPImageProcessor\n") + s
 old = "    produce_colmap(accelerate, args, args.scene_dir, pipeline, stable_material, weight_dtype=weight_dtype, generator=generator)"
 assert s.count(old) == 1
 s = s.replace(old, "    for _env in args.envmap_path.split(','):\n        args.envmap_path = _env\n"
@@ -99,6 +102,12 @@ old = "        self.envmap = imageio.imread(envmap_path)[..., :3]"
 assert d.count(old) == 1
 d = d.replace(old, "        self.envmap = (np.load(envmap_path) if envmap_path.endswith('.npy') else imageio.imread(envmap_path))[..., :3]")
 open("dataset_colmap.py", "w").write(d)
+
+# 신버전 transformers에서 CLIPFeatureExtractor가 사라졌다 → CLIPImageProcessor로 바꿔 부른다
+for f in glob.glob(f"{W}/LightSwitch/**/*.py", recursive=True):
+    t = open(f).read()
+    if "CLIPFeatureExtractor" in t:
+        open(f, "w").write(t.replace("CLIPFeatureExtractor", "CLIPImageProcessor"))
 
 # ---------- 4) 재조명 (T4 두 장에 나눠서) ----------
 t0 = time.time()
