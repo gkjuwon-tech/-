@@ -47,8 +47,17 @@ from PIL import Image
 
 # ---------- 1) 입력 크롭 ----------
 obj_dir = glob.glob(f"/kaggle/input/**/pmsData/{OBJ}", recursive=True)[0]
-img = np.asarray(Image.open(f"{obj_dir}/{IMG}.png").convert("RGB"))
+# DiLiGenT 원본은 16비트 선형 raw다. PIL의 convert("RGB")는 16비트 컬러 PNG의 상위 바이트만 남겨서
+# 사진이 새까매지고 밝기 단계가 뭉개진다 (1차 원정 버그). OpenCV로 16비트 그대로 읽고,
+# 제공된 조명 세기로 나눠 색 균형을 맞춘 뒤, 마스크 안 99% 밝기로 노출을 맞추고 화면용 감마를 적용한다.
 mask = np.asarray(Image.open(f"{obj_dir}/mask.png").convert("L")) > 127
+raw = cv2.imread(f"{obj_dir}/{IMG}.png", cv2.IMREAD_UNCHANGED)[..., ::-1].astype(np.float64) / 65535.0
+inten = np.loadtxt(f"{obj_dir}/light_intensities.txt")[int(IMG) - 1]
+lin = raw / inten[None, None, :]
+lin = lin / (np.percentile(lin.mean(2)[mask], 99) + 1e-8)
+srgb = np.where(lin <= 0.0031308, 12.92 * lin, 1.055 * np.clip(lin, 0, None) ** (1 / 2.4) - 0.055)
+img = (np.clip(srgb, 0, 1) * 255).round().astype(np.uint8)
+img[~mask] = 0
 ys, xs = np.nonzero(mask)
 cy, cx = (ys.min() + ys.max()) / 2, (xs.min() + xs.max()) / 2
 half = int(max(ys.max() - ys.min(), xs.max() - xs.min()) * 0.55) + 1   # 여백 10%
