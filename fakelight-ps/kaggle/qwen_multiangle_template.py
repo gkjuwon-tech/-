@@ -17,6 +17,8 @@ W = "/kaggle/working"
 OUT = f"{W}/out/Qwen-Image-Edit-2511-MultiAngles"
 os.makedirs(OUT, exist_ok=True)
 sh("pip install -q -U diffusers transformers accelerate peft gguf bitsandbytes")
+# Kaggle 이미지의 torchao 0.10이 최신 peft와 충돌해서 LoRA 주입이 실패한다 (peft는 0.16+ 요구). 안 쓰니까 제거
+sh("pip uninstall -q -y torchao", check=False)
 
 import numpy as np
 import torch

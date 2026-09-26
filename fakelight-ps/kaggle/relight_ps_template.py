@@ -1,4 +1,4 @@
-# 가짜 조명 → 광도 스테레오: IC-Light(fbc)로 조명 방향만 바꾼 K장을 만들고 SDM-UniPS로 노멀을 푼다.
+# 가짜 조명 → 광도 스테레오 (v2): IC-Light(fbc)로 조명 방향만 바꾼 16방향 × 시드 3세트를 만들고 SDM-UniPS로 노멀을 푼다.
 # 대조군으로 진짜 조명 렌더(K장)도 같은 SDM-UniPS에 넣는다. 채점은 로컬(scripts/ps_eval.py)에서 한다.
 # 입력은 Kaggle 데이터셋으로 마운트한다 (build_kernel.py --dataset).
 import gc, glob, json, os, shutil, subprocess, sys, time
@@ -46,15 +46,19 @@ CFG = dict(
     prompt="a white clay sculpture of a bunny",
     a_prompt="best quality",
     n_prompt="lowres, bad anatomy, bad hands, cropped, worst quality",
-    seed=12345,          # 모든 방향에 같은 시드 → 방향 간 일관성
+    seeds=[12345, 1, 2],  # 시드별로 한 세트씩. 세트 안에서는 모든 방향에 같은 시드 → 방향 간 일관성
     steps=25,
     cfg=2.0,
-    low_res=512,         # IC-Light 1단계 해상도, 2단계에서 ×1.5 = 768
+    low_res=512,          # IC-Light 1단계 해상도, 2단계에서 ×1.5 = 768
     highres_scale=1.5,
     highres_denoise=0.5,
-    num_dirs=8,          # 화면 기준 0°(오른쪽)부터 반시계 45° 간격
+    num_dirs=16,          # 화면 기준 0°(오른쪽)부터 반시계 22.5° 간격
+    bg_range=(0, 255),    # v1은 (32, 224). 아래쪽 조명이 약하게 나와서 대비를 최대로
+    sdm_max_images=64,
+    upscale_variant=2,    # SDM-UniPS는 크롭을 512 배수로 내림 → 2배로 키워 넣으면 내부 1024px
 )
 print(json.dumps(CFG, indent=2), torch.cuda.get_device_name(0), flush=True)
+ANGLES = [i * 360 / CFG["num_dirs"] for i in range(CFG["num_dirs"])]
 
 # ---------- IC-Light (fbc): 데모 파일에서 UI만 빼고 모델/함수를 불러온다 ----------
 os.chdir(f"{W}/IC-Light")
@@ -74,37 +78,35 @@ exec(compile(src, "gradio_demo_bg.py", "exec"), ic)
 
 
 def gradient_bg(angle_deg, size):
-    """빛이 오는 쪽이 밝은 선형 그라데이션 배경 (IC-Light 데모의 Left/Right/Top/Bottom 일반화, 32~224)."""
+    """빛이 오는 쪽이 밝은 선형 그라데이션 배경 (IC-Light 데모의 Left/Right/Top/Bottom 일반화)."""
     a = np.deg2rad(angle_deg)
     dx, dy = np.cos(a), np.sin(a)
     xs = np.linspace(-1, 1, size)
     xn, yn = np.meshgrid(xs, -xs)  # yn: 위쪽이 +
     proj = (xn * dx + yn * dy) / (abs(dx) + abs(dy))
-    v = (128 + 96 * proj).clip(0, 255).astype(np.uint8)
+    lo, hi = CFG["bg_range"]
+    v = ((lo + hi) / 2 + (hi - lo) / 2 * proj).clip(0, 255).astype(np.uint8)
     return np.stack([v] * 3, -1)
 
 
-def relight_subject(name, fg_rgb):
-    out = f"{OUT}/{name}_iclight.data"
+def relight_subject(name, fg_rgb, seed):
+    out = f"{OUT}/{name}_s{seed}.data"
     os.makedirs(out, exist_ok=True)
     input_fg, matting = ic["run_rmbg"](fg_rgb, sigma=16)
     t0 = time.time()
-    for i in range(CFG["num_dirs"]):
-        ang = i * 360 / CFG["num_dirs"]
+    for i, ang in enumerate(ANGLES):
         bg = gradient_bg(ang, fg_rgb.shape[0])
         pixels, _ = ic["process"](
-            input_fg, bg, CFG["prompt"], CFG["low_res"], CFG["low_res"], 1, CFG["seed"], CFG["steps"],
+            input_fg, bg, CFG["prompt"], CFG["low_res"], CFG["low_res"], 1, seed, CFG["steps"],
             CFG["a_prompt"], CFG["n_prompt"], CFG["cfg"], CFG["highres_scale"], CFG["highres_denoise"],
             ic["BGSource"].UPLOAD.value)
-        img = (pixels[0] * 255).clip(0, 255).astype(np.uint8)
-        Image.fromarray(img).save(f"{out}/L_{i:02d}.png")
-        Image.fromarray(bg).save(f"{out}/bg_{i:02d}.png")
-        print(f"  {name} dir {ang:.0f} deg done", flush=True)
+        Image.fromarray((pixels[0] * 255).clip(0, 255).astype(np.uint8)).save(f"{out}/L_{i:02d}.png")
     size = Image.open(f"{out}/L_00.png").size
     m = Image.fromarray((matting[..., 0] * 255).clip(0, 255).astype(np.uint8)).resize(size, Image.BILINEAR)
     Image.fromarray(((np.asarray(m) > 127) * 255).astype(np.uint8)).save(f"{out}/mask.png")
-    json.dump(dict(CFG, angles=[i * 360 / CFG["num_dirs"] for i in range(CFG["num_dirs"])],
-                   seconds=round(time.time() - t0, 1)), open(f"{out}/relight.json", "w"), indent=2)
+    json.dump(dict(CFG, seed=seed, angles=ANGLES, seconds=round(time.time() - t0, 1)),
+              open(f"{out}/relight.json", "w"), indent=2)
+    print(f"  {name} seed {seed}: {len(ANGLES)} dirs in {time.time()-t0:.0f}s", flush=True)
 
 
 subjects = {
@@ -117,18 +119,40 @@ subjects["render"] = ((rgba[..., :3] * rgba[..., 3:] + 0.5 * (1 - rgba[..., 3:])
 
 torch.cuda.reset_peak_memory_stats()
 for name, img in subjects.items():
-    relight_subject(name, img)
+    for seed in CFG["seeds"]:
+        relight_subject(name, img, seed)
 print("IC-Light peak mem GB:", round(torch.cuda.max_memory_allocated() / 1e9, 2), flush=True)
 ic.clear(); gc.collect(); torch.cuda.empty_cache()
 
-# ---------- SDM-UniPS: 가짜 조명 2세트 + 진짜 조명 1세트 ----------
+# ---------- SDM-UniPS 입력 세트 ----------
+#   {name}_s{seed}   : 시드 하나, 16방향 (로컬에서 시드별 노멀을 평균내 앙상블도 채점)
+#   {name}_all       : 모든 시드를 한 번에 (48장)
+#   {name}_all_x2    : 위와 같지만 2배 업스케일 → SDM-UniPS 내부 1024px
 TEST = f"{W}/sdm_test"
 os.makedirs(TEST, exist_ok=True)
+
+
+def add_set(dst, srcs, scale=1):
+    os.makedirs(dst, exist_ok=True)
+    k = 0
+    for s in srcs:
+        for p in sorted(glob.glob(f"{s}/L_*.png")):
+            im = Image.open(p)
+            if scale != 1:
+                im = im.resize((im.width * scale, im.height * scale), Image.BICUBIC)
+            im.save(f"{dst}/L_{k:03d}.png"); k += 1
+    m = Image.open(f"{srcs[0]}/mask.png")
+    if scale != 1:
+        m = m.resize((m.width * scale, m.height * scale), Image.NEAREST)
+    m.save(f"{dst}/mask.png")
+
+
 for name in subjects:
-    d = f"{TEST}/{name}_iclight.data"
-    os.makedirs(d, exist_ok=True)
-    for p in glob.glob(f"{OUT}/{name}_iclight.data/L_*.png") + [f"{OUT}/{name}_iclight.data/mask.png"]:
-        shutil.copy(p, d)
+    seed_dirs = [f"{OUT}/{name}_s{s}.data" for s in CFG["seeds"]]
+    for sd in seed_dirs:
+        add_set(f"{TEST}/{os.path.basename(sd)}", [sd])
+    add_set(f"{TEST}/{name}_all.data", seed_dirs)
+    add_set(f"{TEST}/{name}_all_x2.data", seed_dirs, scale=CFG["upscale_variant"])
 shutil.copytree(f"{IN}/real_lights.data", f"{TEST}/real_lights.data")
 for f in glob.glob(f"{TEST}/real_lights.data/*"):
     if not (os.path.basename(f).startswith("L_") or f.endswith("mask.png")):
@@ -137,7 +161,7 @@ for f in glob.glob(f"{TEST}/real_lights.data/*"):
 os.chdir(f"{W}/SDM-UniPS")
 t0 = time.time()
 sh(f"python sdm_unips/main.py --session_name sdm_out --test_dir {TEST} --checkpoint {SDM_CKPT} "
-   f"--target normal_and_brdf --max_image_num 10")
+   f"--target normal_and_brdf --max_image_num {CFG['sdm_max_images']} --scalable")
 print("SDM-UniPS seconds:", round(time.time() - t0, 1), flush=True)
 shutil.copytree(f"{W}/SDM-UniPS/sdm_out/results", f"{OUT}/sdm_results")
-print(sorted(glob.glob(f"{OUT}/sdm_results/*/*")), flush=True)
+print(sorted(glob.glob(f"{OUT}/sdm_results/*/normal.png")), flush=True)
