@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Viking Helmet Mesh</title>
+<style>
+  :root { --bg: #3a3a3a; --panel: #2b2b2b; --text: #d8d8d8; --muted: #9a9a9a; --accent: #f0c419; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 12px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #c { display: block; width: 100vw; height: 100vh; }
+  #stats { position: fixed; top: 10px; left: 12px; background: #0006; padding: 6px 10px; border-radius: 6px; white-space: pre; font-family: ui-monospace, monospace; }
+  #bar { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: calc(100vw - 32px); }
+  #bar button { background: var(--panel); color: var(--text); border: 1px solid #555; border-radius: 6px; padding: 7px 11px; font: inherit; cursor: pointer; }
+  #bar button.on { border-color: var(--accent); color: var(--accent); }
+  .lm { position: fixed; pointer-events: none; font-size: 11px; color: #fff; background: #c0392bcc; padding: 1px 5px; border-radius: 4px; transform: translate(8px, -50%); white-space: nowrap; }
+  .lm::before { content: ''; position: absolute; left: -9px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: #ff5a4a; box-shadow: 0 0 0 2px #fff; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="stats"></div>
+<div id="bar">
+  <button data-k="wire" class="on">와이어</button>
+  <button data-k="lm" class="on">랜드마크</button>
+  <button data-k="color">파츠 색</button>
+  <button data-k="axes" class="on">좌표축</button>
+  <button data-k="spin">회전</button>
+</div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const D = /*DATA*/null;
+const state = { wire: true, lm: true, color: false, axes: true, spin: false };
+try { Object.assign(state, JSON.parse(localStorage.getItem('helmet-view') || '{}')); } catch {}
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x3a3a3a);
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 100);
+camera.position.set(3.2, 1.9, 5.6);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.7, 0);
+controls.enableDamping = true;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6));
+const key = new THREE.DirectionalLight(0xffffff, 1.8); key.position.set(3, 5, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffffff, 0.8); rim.position.set(-4, 2, -3); scene.add(rim);
+
+// 파츠별 메쉬 (삼각분할은 부채꼴, 와이어는 원본 폴리곤 테두리만 → 블렌더처럼 쿼드로 보임)
+const partColors = { dome: 0x8d99ae, band: 0xb08d57, rivets: 0xe0c070, crest: 0x6d7b8d, noseguard: 0xb08d57, horns: 0xe8dcc0, sockets: 0x9a7b4f, brows: 0xc9a35e };
+const P = D.verts;
+const group = new THREE.Group(); scene.add(group);
+const mats = [];
+const wirePos = [];
+D.parts.forEach((name, pi) => {
+  const idx = [];
+  for (const f of D.faces) {
+    if (f[0] !== pi) continue;
+    const v = f.slice(1);
+    for (let i = 1; i < v.length - 1; i++) idx.push(v[0], v[i], v[i + 1]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const m = new THREE.MeshStandardMaterial({ color: 0xb4b4b4, roughness: 0.75, metalness: 0.05, side: THREE.DoubleSide,
+    polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  m.userData.partColor = partColors[name] ?? 0xaaaaaa;
+  mats.push(m);
+  group.add(new THREE.Mesh(g, m));
+});
+const seen = new Set();
+for (const f of D.faces) {
+  const v = f.slice(1);
+  v.forEach((a, i) => {
+    const b = v[(i + 1) % v.length], k = a < b ? a + '_' + b : b + '_' + a;
+    if (seen.has(k)) return; seen.add(k);
+    wirePos.push(P[a * 3], P[a * 3 + 1], P[a * 3 + 2], P[b * 3], P[b * 3 + 1], P[b * 3 + 2]);
+  });
+}
+const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(wirePos, 3));
+const wire = new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: 0x1c1c1c, transparent: true, opacity: 0.55 }));
+group.add(wire);
+
+// 좌표계: 바닥 그리드 + 축 (블렌더 색: X 빨강, Y 초록, Z 파랑)
+const axes = new THREE.Group(); scene.add(axes);
+const grid = new THREE.GridHelper(8, 16, 0x555555, 0x474747); grid.position.y = -0.6; axes.add(grid);
+[[1, 0, 0, 0xe0504a], [0, 1, 0, 0x7ec850], [0, 0, 1, 0x4a8ae0]].forEach(([x, y, z, c]) => {
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-x * 3, -y * 0.6, -z * 3), new THREE.Vector3(x * 3, y * 3, z * 3)]);
+  axes.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: c })));
+});
+
+// 랜드마크 라벨
+const labels = D.landmarks.map((l) => {
+  const el = document.createElement('div'); el.className = 'lm'; el.textContent = l.name; document.body.appendChild(el);
+  return { el, v: new THREE.Vector3(...l.p) };
+});
+
+const s = D.stats;
+document.getElementById('stats').textContent =
+  `Objects    ${s.objects}\nVertices   ${s.vertices.toLocaleString()}\nEdges      ${s.edges.toLocaleString()}\nFaces      ${s.faces.toLocaleString()}\nTriangles  ${s.triangles.toLocaleString()}`;
+
+function apply() {
+  wire.visible = state.wire;
+  axes.visible = state.axes;
+  mats.forEach((m) => m.color.setHex(state.color ? m.userData.partColor : 0xb4b4b4));
+  labels.forEach((l) => (l.el.style.display = state.lm ? '' : 'none'));
+  document.querySelectorAll('#bar button').forEach((b) => b.classList.toggle('on', !!state[b.dataset.k]));
+  try { localStorage.setItem('helmet-view', JSON.stringify(state)); } catch {}
+}
+document.getElementById('bar').addEventListener('click', (e) => {
+  const k = e.target.dataset?.k; if (!k) return; state[k] = !state[k]; apply();
+});
+apply();
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  if (w < h) camera.position.setLength(8.5);
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+const tmp = new THREE.Vector3();
+renderer.setAnimationLoop(() => {
+  if (state.spin) group.rotation.y += 0.005;
+  controls.update();
+  renderer.render(scene, camera);
+  for (const l of labels) {
+    if (!state.lm) break;
+    tmp.copy(l.v).applyMatrix4(group.matrixWorld).project(camera);
+    const vis = tmp.z < 1;
+    l.el.style.display = vis ? '' : 'none';
+    l.el.style.left = ((tmp.x + 1) / 2) * innerWidth + 'px';
+    l.el.style.top = ((1 - tmp.y) / 2) * innerHeight + 'px';
+  }
+});
+window.__cam = (x, y, z) => { camera.position.set(x, y, z); controls.update(); };
+window.__ready = true;
+</script>
+</body>
+</html>
