@@ -225,6 +225,10 @@ def run_mono(name, fn):
 
 def dsine():
     sh("pip install -q geffnet")
+    # Neural LightRig의 utils 패키지가 sys.path와 sys.modules에 남아 있으면 DSINE의 utils.rotation을 가린다
+    sys.path[:] = [p for p in sys.path if "Neural-LightRig" not in p and "IC-Light" not in p]
+    for k in [k for k in sys.modules if k == "utils" or k.startswith("utils.")]:
+        del sys.modules[k]
     m = torch.hub.load("hugoycj/DSINE-hub", "DSINE", trust_repo=True)
     return m.infer_pil(Image.fromarray(fg_gray))[0].permute(1, 2, 0).float().cpu().numpy()
 
