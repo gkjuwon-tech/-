@@ -22,15 +22,40 @@ from detail_metrics import detail_scores
 from ps_eval import load_mask, load_normal_png, mean_angular_error
 
 
-def refine(I, n0, m, lam=1.0, mu=0.5, iters=200, step=0.4):
-    """I: HxW 밝기, n0: HxWx3 초기 노멀, m: 마스크. 경사하강으로 푼다."""
+def estimate_albedo(relights, n0, m):
+    """조명 이미지 여러 장에서 알베도를 추정한다. 조명이 바뀌어도 그대로인 명암 = 무늬.
+    초기 노멀로 이미지별 조명을 맞춘 뒤 픽셀별 광도 스테레오를 풀면 |ρn| = ρ 가 나온다."""
+    from physics_refine import fit_lights
+    Im = relights[:, m]
+    G, a, _ = fit_lights(Im, n0[m])
+    R = Im - (a[:, None] if a.ndim == 1 else a)
+    w = ((G @ n0[m].T) > 0.05).astype(float)
+    A = np.einsum("kp,ki,kj->pij", w, G, G) + 1e-6 * np.eye(3)
+    b = np.einsum("kp,ki,kp->pi", w, G, R)
+    rho = np.zeros(m.shape)
+    rho[m] = np.linalg.norm(np.linalg.solve(A, b[..., None])[..., 0], axis=1)
+    rho[m] /= np.median(rho[m]) + 1e-12
+    return rho
+
+
+def texture_confidence(rho, m, tau=0.08):
+    """무늬 경계(알베도가 급변하는 곳)에서는 입력 명암을 덜 믿는다."""
+    from scipy.ndimage import gaussian_filter
+    lr = np.log(np.clip(gaussian_filter(rho, 1.0), 1e-3, None))
+    gy, gx = np.gradient(lr)
+    return np.exp(-((gx ** 2 + gy ** 2) / tau ** 2)) * m
+
+
+def refine(I, n0, m, lam=1.0, mu=0.5, iters=200, step=0.4, weight=None):
+    """I: HxW 밝기, n0: HxWx3 초기 노멀, m: 마스크, weight: 픽셀별 입력 명암 신뢰도. 경사하강으로 푼다."""
+    wt = m.astype(float) if weight is None else weight * m
     N = n0[m]
     A = np.c_[np.ones(len(N)), N]
-    coef, *_ = np.linalg.lstsq(A, I[m], rcond=None)   # 조명 추정 (c0, c)
+    coef, *_ = np.linalg.lstsq(A * wt[m][:, None], I[m] * wt[m], rcond=None)   # 조명 추정 (c0, c)
     c0, c = coef[0], coef[1:]
     n = n0.copy()
     for _ in range(iters):
-        r = (c0 + n @ c - I) * m                        # 음영 잔차
+        r = (c0 + n @ c - I) * wt                       # 음영 잔차 (신뢰도 가중)
         grad = r[..., None] * c[None, None, :] + lam * (n - n0)
         lap = (np.roll(n, 1, 0) + np.roll(n, -1, 0) + np.roll(n, 1, 1) + np.roll(n, -1, 1) - 4 * n)
         grad -= mu * lap
@@ -48,6 +73,8 @@ def main():
     ap.add_argument("--gt", default=None)
     ap.add_argument("--lam", type=float, nargs="+", default=[1.0])
     ap.add_argument("--mu", type=float, nargs="+", default=[0.5])
+    ap.add_argument("--relights", default=None, help="무늬 제거용 조명 이미지 glob (주면 알베도로 나눈 뒤 보정)")
+    ap.add_argument("--tau", type=float, default=0.0, help=">0이면 무늬 경계 신뢰도 가중치 사용")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -60,10 +87,20 @@ def main():
         gm = load_mask(os.path.join(args.gt, "mask.png"), gt.shape[:2])
         c, e = detail_scores(n0, gt, gm)
         print(f"초기: MAE {mean_angular_error(n0, gt, gm)[0]:.2f}  디테일상관 {c:.3f} 세기 {e:.2f}")
+    weight = None
+    if args.relights:
+        import glob as _glob
+        rl = np.stack([np.asarray(Image.open(p).convert("L").resize(shape[::-1], Image.BICUBIC), dtype=np.float64) / 255.0
+                       for p in sorted(_glob.glob(args.relights)) if not p.endswith("mask.png")])
+        valid = m & (np.abs(n0).sum(2) > 0)
+        rho = estimate_albedo(rl, n0, valid)
+        I = np.where(valid, I / np.clip(rho, 0.05, None), I)
+        if args.tau > 0:
+            weight = texture_confidence(rho, valid, args.tau)
     best = None
     for lam in args.lam:
         for mu in args.mu:
-            n, (c0, c) = refine(I, n0, m & (np.abs(n0).sum(2) > 0), lam, mu)
+            n, (c0, c) = refine(I, n0, m & (np.abs(n0).sum(2) > 0), lam, mu, weight=weight)
             if args.gt:
                 mae = mean_angular_error(n, gt, gm)[0]
                 dc, de = detail_scores(n, gt, gm)
