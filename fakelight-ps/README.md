@@ -1,4 +1,4 @@
-# 🔦 짭광도 스테레오 (Fake-Light Photometric Stereo)
+# 🔦 짭광 스테레오 (Fake-Light Photometric Stereo)
 
 > *"빛은 가짜지만, 노멀은 진짜다"*
 
