@@ -4,6 +4,7 @@
 #   - numpy==1.24.4 고정 → Kaggle(파이썬 3.12)에 휠이 없음: 의존성은 고정 없이 직접 설치하고 seva는 --no-deps
 #   - VAE를 막힌 stabilityai/stable-diffusion-2-1-base에서 부름 → sd2-community 미러
 #   - 모델을 bfloat16으로 올림 → T4는 bf16 미지원: fp32로 두고 autocast(fp16)로 계산
+#   - 어텐션을 FlashAttention으로 고정 → T4에 없음 (CPU 검증으로는 못 잡음): 다른 커널도 허용
 # 21장(입력 1 + 목표 20)을 한 번에 생성해 시점 일관성을 최대로. 메모리가 모자라면 T=11(두 번 나눠 생성)로 재시도.
 import base64, glob, json, os, shutil, subprocess, sys, time
 
@@ -41,7 +42,10 @@ sh("pip install -q roma tyro fire einops colorama splines kornia open-clip-torch
 sh(f"cd {W}/seva && pip install -q --no-deps -e .")
 os.chdir(f"{W}/seva")
 for f, old, new in [("seva/modules/autoencoder.py", "stabilityai/stable-diffusion-2-1-base", "sd2-community/stable-diffusion-2-1-base"),
-                    ("seva/utils.py", "model = Seva(SevaParams()).to(torch.bfloat16)", "model = Seva(SevaParams())")]:
+                    ("seva/utils.py", "model = Seva(SevaParams()).to(torch.bfloat16)", "model = Seva(SevaParams())"),
+                    # FlashAttention만 허용 → T4(sm75)에는 없음: 메모리 효율 커널과 기본 커널도 허용
+                    ("seva/modules/transformer.py", "with sdpa_kernel(SDPBackend.FLASH_ATTENTION):",
+                     "with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH]):")]:
     s = open(f).read()
     assert s.count(old) == 1, (f, old)
     open(f, "w").write(s.replace(old, new))
