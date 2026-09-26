@@ -47,7 +47,8 @@ json.dump([os.path.basename(p) for p in paths], open(f"{OUT}/frames.json", "w"))
 gt = glob.glob("/kaggle/input/**/transforms.json", recursive=True)
 if gt:
     meta = json.load(open(gt[0]))
-    G = np.array([f["transform_matrix"] for f in meta["frames"]])[:len(paths)]
+    G = np.array([np.vstack([f["transform_matrix"], [0, 0, 0, 1]]) if len(f["transform_matrix"]) == 3
+                  else f["transform_matrix"] for f in meta["frames"]])[:len(paths)]
     G[:, :3, 1:3] *= -1                                # OpenGL → OpenCV
     P = np.stack([np.linalg.inv(np.vstack([e, [0, 0, 0, 1]])) for e in extr])   # 예측 c2w
     # 첫 프레임 기준 상대 회전 오차
