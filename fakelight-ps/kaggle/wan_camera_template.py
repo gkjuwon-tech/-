@@ -3,6 +3,7 @@
 # 공식 predict_v2v_control_camera_5b.py의 설정 줄만 바꿔서 실행한다. Lightning에서 확인한 것:
 #   - VideoX-Fun 최신판의 오타 (xfuser 없을 때 xFUserLongContextAttention = None) → 이름 바로잡기
 # T4 대응: bf16 미지원이라 fp16, 메모리 모드는 model_cpu_offload 먼저, 실패하면 sequential_cpu_offload.
+# Kaggle RAM 29GB: T5-XXL은 별도 프로세스에서 프롬프트만 인코딩하고 내려놓는다.
 import base64, glob, json, os, re, shutil, subprocess, sys, time
 
 def sh(cmd, check=True):
@@ -24,8 +25,8 @@ T0 = time.time()
 stats = {}
 
 sh("nvidia-smi -L; df -h /tmp /kaggle/working | tail -2; free -g | head -2", check=False)
-sh(f"git clone -q --depth 1 https://github.com/aigc-apps/VideoX-Fun.git {W}/VideoX-Fun")
-os.chdir(f"{W}/VideoX-Fun")
+sh("git clone -q --depth 1 https://github.com/aigc-apps/VideoX-Fun.git /tmp/VideoX-Fun")
+os.chdir("/tmp/VideoX-Fun")
 # torch는 Kaggle 것을 그대로 쓰고 나머지만 설치 (torch를 다시 깔면 CUDA가 어긋날 수 있음)
 req = [l.strip() for l in open("requirements.txt") if l.strip() and not l.startswith("#") and not l.startswith("torch")]
 open("req_notorch.txt", "w").write("\n".join(req))
@@ -46,7 +47,48 @@ for name, b64 in json.loads('__INPUT_FILES__').items():
 prompt = open("fl/prompt.txt").read().strip()
 sh("ls -la fl")
 
+# ---------- 텍스트 인코딩은 따로 (T5-XXL 11GB + 영상 모델 10GB를 RAM에 동시에 올리면 Kaggle 29GB가 터짐) ----------
+NEG = ("色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，"
+       "多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走")
+open("fl/neg.txt", "w").write(NEG)
+open("encode_prompts.py", "w").write(r"""
+import os, torch
+from omegaconf import OmegaConf
+from transformers import AutoTokenizer
+from videox_fun.models import WanT5EncoderModel
+cfg = OmegaConf.load("config/wan2.2/wan_civitai_5b.yaml")
+M = "models/Diffusion_Transformer/Wan2.2-Fun-5B-Control-Camera"
+tok = AutoTokenizer.from_pretrained(os.path.join(M, cfg['text_encoder_kwargs'].get('tokenizer_subpath', 'tokenizer')))
+te = WanT5EncoderModel.from_pretrained(os.path.join(M, cfg['text_encoder_kwargs'].get('text_encoder_subpath', 'text_encoder')),
+                                       additional_kwargs=OmegaConf.to_container(cfg['text_encoder_kwargs']),
+                                       low_cpu_mem_usage=True, torch_dtype=torch.bfloat16).eval()
+out = {}
+for key, path in [("pos", "fl/prompt.txt"), ("neg", "fl/neg.txt")]:
+    t = tok([open(path).read().strip()], padding="max_length", max_length=512, truncation=True, add_special_tokens=True, return_tensors="pt")
+    n = int(t.attention_mask.sum())
+    with torch.no_grad():
+        e = te(t.input_ids, attention_mask=t.attention_mask)[0][0, :n]
+    out[key] = e.float()
+    print(key, tuple(e.shape), float(e.float().abs().mean()), flush=True)
+torch.save(out, "fl/prompt_embeds.pt")
+""")
+sh("python encode_prompts.py")
+
 src = open("examples/wan2.2_fun/predict_v2v_control_camera_5b.py").read()
+# 본 생성에서는 T5를 안 올리고 저장해둔 임베딩을 쓴다 (파이프라인은 text_encoder.dtype만 참조)
+i0 = src.index("text_encoder = WanT5EncoderModel.from_pretrained(")
+i1 = src.index("text_encoder = text_encoder.eval()") + len("text_encoder = text_encoder.eval()")
+src = src[:i0] + """class _NoTextEncoder(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("_d", torch.zeros(1, dtype=weight_dtype))
+    @property
+    def dtype(self):
+        return weight_dtype
+text_encoder = _NoTextEncoder()
+_E = torch.load("fl/prompt_embeds.pt")""" + src[i1:]
+assert src.count("    sample = pipeline(\n        prompt, \n") == 1
+src = src.replace("    sample = pipeline(\n        prompt, \n", "    sample = pipeline(\n        prompt, prompt_embeds=[_E['pos'].to(device, weight_dtype)], negative_prompt_embeds=[_E['neg'].to(device, weight_dtype)],\n")
 h, w = SIZE.split("x")
 for traj in TRAJS:
     for mem in ["model_cpu_offload", "sequential_cpu_offload"]:
