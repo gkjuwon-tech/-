@@ -1,0 +1,13 @@
+{
+  "relight": {
+    "ok": true,
+    "seconds": 1213.0
+  },
+  "sdm_az000": 16,
+  "sdm_az045": 16,
+  "sdm_az090": 16,
+  "sdm_az180": 16,
+  "sdm_az270": 16,
+  "sdm_az315": 16,
+  "total_seconds": 1569.9
+}

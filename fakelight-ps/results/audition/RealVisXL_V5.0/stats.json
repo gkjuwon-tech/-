@@ -1,0 +1,23 @@
+{
+  "vae_model": "madebyollin/sdxl-vae-fp16-fix",
+  "adapter_path": "huanngzh/mv-adapter",
+  "azimuth_deg": [
+    0,
+    45,
+    90,
+    180,
+    270,
+    315
+  ],
+  "text": "a white clay sculpture of a bunny, studio lighting, high quality",
+  "num_inference_steps": 50,
+  "guidance_scale": 3.0,
+  "seed": 42,
+  "height": 768,
+  "width": 768,
+  "base_model": "SG161222/RealVisXL_V5.0",
+  "load_seconds": 139.4,
+  "gen_seconds": 207.5,
+  "peak_mem_gb": 12.2,
+  "gpu": "Tesla T4"
+}

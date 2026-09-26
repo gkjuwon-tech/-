@@ -1,0 +1,42 @@
+{
+  "prompt": "a white clay sculpture of a bunny",
+  "a_prompt": "best quality",
+  "n_prompt": "lowres, bad anatomy, bad hands, cropped, worst quality",
+  "seeds": [
+    12345,
+    1,
+    2
+  ],
+  "steps": 25,
+  "cfg": 2.0,
+  "low_res": 512,
+  "highres_scale": 1.5,
+  "highres_denoise": 0.5,
+  "num_dirs": 16,
+  "bg_range": [
+    0,
+    255
+  ],
+  "sdm_max_images": 64,
+  "upscale_variant": 2,
+  "seed": 2,
+  "angles": [
+    0.0,
+    22.5,
+    45.0,
+    67.5,
+    90.0,
+    112.5,
+    135.0,
+    157.5,
+    180.0,
+    202.5,
+    225.0,
+    247.5,
+    270.0,
+    292.5,
+    315.0,
+    337.5
+  ],
+  "seconds": 337.5
+}

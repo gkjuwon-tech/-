@@ -1,0 +1,42 @@
+{
+  "jugg_s12345_lin": {
+    "images": 16,
+    "of": 16,
+    "seconds": 78.7
+  },
+  "jugg_s1_lin": {
+    "images": 16,
+    "of": 16,
+    "seconds": 66.5
+  },
+  "jugg_s12345_ramp": {
+    "images": 16,
+    "of": 16,
+    "seconds": 66.2
+  },
+  "jugg_s2_lin": {
+    "images": 16,
+    "of": 16,
+    "seconds": 66.9
+  },
+  "jugg_s2_ramp": {
+    "images": 16,
+    "of": 16,
+    "seconds": 66.4
+  },
+  "jugg_s1_ramp": {
+    "images": 16,
+    "of": 16,
+    "seconds": 66.0
+  },
+  "jugg_all_ramp": {
+    "images": 32,
+    "of": 48,
+    "seconds": 110.3
+  },
+  "jugg_all_lin": {
+    "images": 32,
+    "of": 48,
+    "seconds": 112.0
+  }
+}
