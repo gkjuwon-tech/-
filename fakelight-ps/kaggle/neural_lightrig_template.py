@@ -48,8 +48,8 @@ from inference import prepare_stage1_mld, prepare_stage2_recon
 from utils.vis import replace_bg_preserving_alpha
 
 ckpt = snapshot_download(repo_id="zxhezexin/neural-lightrig-mld-and-recon", local_dir=f"{W}/nlr_ckpt")
+# 두 모델을 동시에 올리면 T4 메모리가 부족하다 → 생성 모델로 격자를 전부 만든 뒤 내리고 노멀 모델을 올린다
 model1 = prepare_stage1_mld(cfg_path="./mld/configs/infer.yaml", ckpt_path=os.path.join(ckpt, "mld.pt"))
-model2 = prepare_stage2_recon(ckpt_path=os.path.join(ckpt, "recon"))
 
 CFG = dict(seeds=[511, 1, 2], input_res=512, cfg_scale=2.0, cfg_rescale=0.7, steps=75, frame=768,
            thetas_deg=[i * 45 for i in range(9)], phis_deg=[30, 60, 30, 60, 30, 60, 30, 60, 0])
@@ -86,12 +86,22 @@ for name, rgba in subjects.items():
             Image.fromarray(tile).resize((F, F), Image.BICUBIC).save(f"{OUT}/sets/{prefix}__L_{i:02d}.png")
         Image.fromarray(mask_full).save(f"{OUT}/sets/{prefix}__mask.png")
         stats[prefix] = dict(seconds=round(time.time() - t0, 1))
-        if seed == CFG["seeds"][0]:
-            _, _, img_normal = model2.predict(input_image=replace_bg_preserving_alpha(rgba_in, 0), ref_image=grid)
-            img_normal.resize((F, F), Image.BILINEAR).save(f"{OUT}/nlr_normal_{name}.png")
         print(prefix, stats[prefix], flush=True)
-del model1, model2
-torch.cuda.empty_cache()
+del model1
+import gc; gc.collect(); torch.cuda.empty_cache()
+
+# Neural LightRig 자체 노멀 (기준선): 첫 시드 격자로
+model2 = prepare_stage2_recon(ckpt_path=os.path.join(ckpt, "recon"))
+for name, rgba in subjects.items():
+    try:
+        rgba_in = rgba.resize((CFG["input_res"], CFG["input_res"]))
+        grid = Image.open(f"{OUT}/{name}_nlr_s{CFG['seeds'][0]}_grid.png")
+        _, _, img_normal = model2.predict(input_image=replace_bg_preserving_alpha(rgba_in, 0), ref_image=grid)
+        img_normal.resize((CFG["frame"], CFG["frame"]), Image.BILINEAR).save(f"{OUT}/nlr_normal_{name}.png")
+    except Exception as e:
+        print("recon failed:", repr(e), flush=True)
+del model2
+gc.collect(); torch.cuda.empty_cache()
 
 # ---------- SDM-UniPS ----------
 by_set = {}
