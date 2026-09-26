@@ -51,25 +51,30 @@ for f, old, new in [("seva/modules/autoencoder.py", "stabilityai/stable-diffusio
     open(f, "w").write(s.replace(old, new))
 
 # ---------- 생성 ----------
-for T in [21, 11]:
-    t0 = time.time()
-    ok = sh(f"PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python demo.py --data_path {W}/data --data_items {TAG} "
-            f"--task img2img --num_inputs 1 --T {T} --video_save_fps 10", check=False)
-    outs = sorted(glob.glob(f"work_dirs/demo/img2img/{TAG}/samples-rgb/*.png"))
-    stats[f"T{T}"] = dict(ok=ok, n=len(outs), seconds=round(time.time() - t0, 1))
-    if ok and len(outs) >= 20:
-        break
-    shutil.rmtree("work_dirs", ignore_errors=True)
-
-# samples-rgb/000..019 = 목표 1..20 (split 순서). 입력은 0번.
+# 사진 1장은 물체까지 거리를 모른다 (SEVA 문서도 인정하는 스케일 모호성). SEVA는 첫 카메라의 거리를
+# camera_scale로 맞추는데, 모델이 그림에서 느끼는 거리와 다르면 엉뚱한 점을 축으로 돌아서 조각난 그림이 나온다.
+# 그래서 camera_scale을 몇 개 훑어서 전부 저장한다 (정답을 보고 고르지 않고, 결과를 나란히 비교).
 views = json.load(open(f"{scene}/views.json"))["views"]
-os.makedirs(f"{OUT}/views", exist_ok=True)
-shutil.copy(f"{scene}/images/input.png", f"{OUT}/views/{views[0]['name']}")
-for k, p in enumerate(sorted(glob.glob(f"work_dirs/demo/img2img/{TAG}/samples-rgb/*.png"))):
-    if k + 1 < len(views):
-        shutil.copy(p, f"{OUT}/views/{views[k + 1]['name']}")
-for f in glob.glob(f"work_dirs/demo/img2img/{TAG}/*.mp4"):
-    shutil.copy(f, OUT)
+for cs in [float(x) for x in "__SCALES__".split(",")]:
+    tag = f"cs{cs:g}"
+    for T in [int(x) for x in "__TS__".split(",")]:
+        t0 = time.time()
+        ok = sh(f"PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python demo.py --data_path {W}/data --data_items {TAG} "
+                f"--task img2img --num_inputs 1 --T {T} --camera_scale {cs} --video_save_fps 10 --save_subdir {tag}",
+                check=False)
+        outs = sorted(glob.glob(f"work_dirs/demo/img2img/{tag}/{TAG}/samples-rgb/*.png"))
+        stats[f"{tag}_T{T}"] = dict(ok=ok, n=len(outs), seconds=round(time.time() - t0, 1))
+        print(tag, T, stats[f"{tag}_T{T}"], flush=True)
+        if ok and len(outs) >= len(views) - 1:
+            break
+        shutil.rmtree(f"work_dirs/demo/img2img/{tag}", ignore_errors=True)
+    # samples-rgb/000.. = 목표 1.. (split 순서). 입력은 0번.
+    vd = f"{OUT}/{tag}/views"
+    os.makedirs(vd, exist_ok=True)
+    shutil.copy(f"{scene}/images/input.png", f"{vd}/{views[0]['name']}")
+    for k, p in enumerate(sorted(glob.glob(f"work_dirs/demo/img2img/{tag}/{TAG}/samples-rgb/*.png"))):
+        if k + 1 < len(views):
+            shutil.copy(p, f"{vd}/{views[k + 1]['name']}")
 
 stats["total_seconds"] = round(time.time() - T0, 1)
 json.dump(stats, open(f"{OUT}/stats.json", "w"), indent=2)
