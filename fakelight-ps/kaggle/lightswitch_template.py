@@ -18,6 +18,7 @@ TAG = "__TAG__"
 NUM_LIGHTS = int("__NUM_LIGHTS__")
 MODEL = "__MODEL__"            # thebluser/lightswitch 또는 thebluser/lightswitch-multi-fov
 RES = int("__RES__")           # 재조명 해상도 (정사각)
+ORM = "__ORM__"                # "거칠기,금속성" 덮어쓰기 (예: 0.9,0.0 = 무광) 또는 none
 W = "/kaggle/working"
 OUT = f"{W}/out/{TAG}"
 os.makedirs(OUT, exist_ok=True)
@@ -88,6 +89,13 @@ np.save(f"{OUT}/light_dirs_world.npy", L)
 # ---------- 3) 공식 코드 패치 ----------
 s = open("produce_gs_relightings.py").read()
 s = s.replace("stabilityai/stable-diffusion-2-1-base", "sd2-community/stable-diffusion-2-1-base")
+# 재질 덮어쓰기: 재질 추정 모델이 점토색 물체를 금속으로 보면 크롬처럼 재조명된다 (버니 시험 운전).
+# 광도 스테레오에는 무광 반사가 필요하니, 추정 알베도는 그대로 두고 거칠기/금속성만 고정한다. ORM 채널 = (가림, 거칠기, 금속성)
+if ORM != "none":
+    rough, metal = [float(x) for x in ORM.split(",")]
+    old_orm = "    pred_orm = torch.from_numpy(pred_orm).permute(0, 3, 1, 2).to(accelerate.device)"
+    assert s.count(old_orm) == 1
+    s = s.replace(old_orm, old_orm + f"\n    pred_orm[:, 1] = {rough}\n    pred_orm[:, 2] = {metal}")
 # model_index.json이 CLIPFeatureExtractor 클래스를 이름으로 부르므로 transformers에 별칭도 달아둔다
 s = ("import transformers\nif not hasattr(transformers, 'CLIPFeatureExtractor'):\n"
      "    transformers.CLIPFeatureExtractor = transformers.CLIPImageProcessor\n") + s
