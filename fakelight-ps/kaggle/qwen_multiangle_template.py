@@ -20,6 +20,7 @@ sh("pip install -q -U diffusers transformers accelerate peft gguf bitsandbytes")
 # Kaggle 이미지의 torchao 0.10이 최신 peft와 충돌해서 LoRA 주입이 실패한다 (peft는 0.16+ 요구). 안 쓰니까 제거
 sh("pip uninstall -q -y torchao", check=False)
 
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
 import numpy as np
 import torch
 from PIL import Image
@@ -47,7 +48,9 @@ CFG = dict(
     angles_scale=0.9,
     steps=4,
     true_cfg_scale=1.0,
-    size=1024,
+    # 1024px에서는 OOM: T4는 bf16용 메모리 효율 어텐션 커널이 없어 어텐션 행렬을 통째로 만든다.
+    # 출력과 VAE 조건 이미지를 768px로 낮춰 토큰 수를 줄인다.
+    size=768,
     seed=42,
     # LoRA README의 8방위 표기. 0°(front view)는 입력 그대로라 생성하지 않는다
     views={45: "front-right quarter view", 90: "right side view", 135: "back-right quarter view",
@@ -78,6 +81,8 @@ TE_DEV = next(text_encoder.parameters()).device
 print(f"text encoder on {TE_DEV} ({time.time()-t0:.0f}s)", flush=True)
 
 from diffusers import GGUFQuantizationConfig, QwenImageEditPlusPipeline, QwenImageTransformer2DModel
+import diffusers.pipelines.qwenimage.pipeline_qwenimage_edit_plus as qie_plus
+qie_plus.VAE_IMAGE_SIZE = CFG["size"] * CFG["size"]  # 원래 1024*1024 (조건 이미지 VAE 해상도)
 
 
 def build_pipe(gguf_file):
@@ -127,7 +132,10 @@ for gguf_file in CFG["gguf_candidates"]:
         break
     except torch.OutOfMemoryError as e:
         print(f"OOM with {gguf_file}, trying smaller quant: {e}", flush=True)
-        pipe = None; gc.collect(); torch.cuda.empty_cache()
+        pipe = None
+    # except 블록 안에서는 트레이스백이 이전 파이프라인을 붙잡고 있어서, 블록을 빠져나온 뒤에 비운다
+    if pipe is None:
+        gc.collect(); torch.cuda.empty_cache()
 assert pipe is not None, "all GGUF candidates OOM"
 
 times = []
