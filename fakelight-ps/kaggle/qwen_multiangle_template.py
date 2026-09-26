@@ -84,6 +84,26 @@ from diffusers import GGUFQuantizationConfig, QwenImageEditPlusPipeline, QwenIma
 import diffusers.pipelines.qwenimage.pipeline_qwenimage_edit_plus as qie_plus
 qie_plus.VAE_IMAGE_SIZE = CFG["size"] * CFG["size"]  # 원래 1024*1024 (조건 이미지 VAE 해상도)
 
+# T4는 bf16용 flash/메모리 효율 어텐션이 없어 어텐션 행렬을 통째로 만든다 (768px에서도 한 번에 2.85GB 요청).
+# 쿼리를 시퀀스 방향으로 잘라 계산한다. 소프트맥스는 쿼리 행마다 독립이라 결과는 원래와 같다.
+import diffusers.models.transformers.transformer_qwenimage as tq
+_dispatch = tq.dispatch_attention_fn
+Q_CHUNK = 1024
+
+def chunked_attention(query, key, value, attn_mask=None, *args, **kwargs):
+    S = query.shape[1]  # (B, S, H, D)
+    if S <= Q_CHUNK:
+        return _dispatch(query, key, value, attn_mask, *args, **kwargs)
+    outs = []
+    for i in range(0, S, Q_CHUNK):
+        m = attn_mask
+        if m is not None and m.dim() >= 3 and m.shape[-2] == S:
+            m = m[..., i:i + Q_CHUNK, :]
+        outs.append(_dispatch(query[:, i:i + Q_CHUNK], key, value, m, *args, **kwargs))
+    return torch.cat(outs, dim=1)
+
+tq.dispatch_attention_fn = chunked_attention
+
 
 def build_pipe(gguf_file):
     transformer = QwenImageTransformer2DModel.from_single_file(
