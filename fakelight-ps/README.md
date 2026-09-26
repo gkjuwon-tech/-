@@ -16,8 +16,9 @@
 | `assets/stanford-bunny.obj` | 스탠포드 버니 ([common-3d-test-models](https://github.com/alecjacobson/common-3d-test-models)) |
 | `scripts/render_front.py` | numpy 정사영 래스터라이저. 정면 RGB/RGBA, 마스크, 정답 노멀맵 저장 |
 | `renders/` | 768px 정면 렌더 (yaw 80°) |
-| `kaggle/mvadapter_dreamshaper_template.py` | Kaggle T4용 MV-Adapter I2MV + DreamShaper XL 스크립트 |
-| `kaggle/build_kernel.py` | 입력 이미지를 끼워 넣어 Kaggle 커널 폴더 생성 |
+| `kaggle/mvadapter_i2mv_template.py` | Kaggle T4용 MV-Adapter I2MV 스크립트 (SDXL 베이스 모델 여러 개 순차 실행) |
+| `kaggle/build_kernel.py` | 입력 이미지와 모델 목록을 끼워 넣어 Kaggle 커널 폴더 생성 |
+| `scripts/compare_grids.py` | 모델별 6뷰 결과를 한 장에 쌓아 눈 비교용 이미지 생성 |
 
 ### 다시 돌리기
 
