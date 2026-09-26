@@ -27,6 +27,8 @@ sh("pip install -q 'pytorch-lightning==1.9.5' 'omegaconf==2.3.0' einops kornia t
    "scikit-image safetensors")
 sh(f"git clone -q --depth 1 https://github.com/jwoo-park0/WAVE.git {W}/WAVE")
 sh(f"git clone -q --depth 1 https://github.com/LiheYoung/Depth-Anything.git {W}/Depth-Anything")
+# Depth-Anything은 DINOv2를 작업 폴더 기준 torchhub/에서 불러온다 → WAVE 폴더에 연결
+sh(f"ln -s {W}/Depth-Anything/torchhub {W}/WAVE/torchhub && ls {W}/WAVE/torchhub")
 ck = f"{W}/WAVE/configs/warp_plus_pose/iter_112000"
 os.makedirs(ck, exist_ok=True)
 sh(f"curl -sSL -o {ck}/model.safetensors "
