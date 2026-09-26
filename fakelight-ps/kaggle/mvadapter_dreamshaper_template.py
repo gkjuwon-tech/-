@@ -23,6 +23,33 @@ sh(f"git clone -q https://github.com/huanngzh/MV-Adapter.git {W}/MV-Adapter "
    f"&& cd {W}/MV-Adapter && git checkout -q 4277e0018232bac82bb2c103caf0893cedb711be")
 sys.path.insert(0, f"{W}/MV-Adapter")
 
+
+def patch(path, old, new, count):
+    src = open(path).read()
+    assert src.count(old) == count, f"patch target not found {count}x in {path}: {old[:60]!r}"
+    open(path, "w").write(src.replace(old, new))
+
+
+# T4(14.5GB) OOM 패치: 원본은 레퍼런스 특징을 뷰 수 × CFG 2배로 복사해두고 .clone()까지 해서
+# 768px 6뷰 기준 약 10GB를 먹는다. 어텐션은 이 값을 읽기만 하므로 [uncond, cond] 2벌만 들고 있다가
+# 레이어마다 필요할 때 늘린다. 배치 순서가 [uncond×N, cond×N]이라 repeat_interleave 결과가 원본과 같다.
+MVA = f"{W}/MV-Adapter/mvadapter"
+patch(f"{MVA}/pipelines/pipeline_mvadapter_i2mv_sdxl.py",
+      """            ref_hidden_states = {
+                k: v.repeat_interleave(num_images_per_prompt, dim=0)
+                for k, v in ref_hidden_states.items()
+            }
+""", "", 1)
+patch(f"{MVA}/pipelines/pipeline_mvadapter_i2mv_sdxl.py",
+      '"ref_hidden_states": {k: v.clone() for k, v in ref_hidden_states.items()},',
+      '"ref_hidden_states": ref_hidden_states,', 1)
+patch(f"{MVA}/models/attention_processor.py",
+      "            reference_hidden_states = ref_hidden_states[self.name]\n",
+      "            reference_hidden_states = ref_hidden_states[self.name]\n"
+      "            reference_hidden_states = reference_hidden_states.repeat_interleave(\n"
+      "                batch_size // reference_hidden_states.shape[0], dim=0)\n", 2)
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")
+
 import torch
 from PIL import Image
 from mvadapter.utils import make_image_grid

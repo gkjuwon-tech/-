@@ -1,3 +1,6 @@
 build/
 __pycache__/
 *.npy
+
+results/*/MV-Adapter/
+results/*/*.log
