@@ -5,3 +5,4 @@ __pycache__/
 results/*/MV-Adapter/
 results/*/*.log
 data/
+results/triposr_diligent/*_mesh.obj
