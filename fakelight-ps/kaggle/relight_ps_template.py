@@ -58,6 +58,7 @@ print(json.dumps(CFG, indent=2), torch.cuda.get_device_name(0), flush=True)
 
 # ---------- IC-Light (fbc): 데모 파일에서 UI만 빼고 모델/함수를 불러온다 ----------
 os.chdir(f"{W}/IC-Light")
+sys.path.insert(0, f"{W}/IC-Light")  # briarmbg.py import용
 src = open("gradio_demo_bg.py").read()
 src = src[:src.index("block = gr.Blocks()")]
 for old, new in [
